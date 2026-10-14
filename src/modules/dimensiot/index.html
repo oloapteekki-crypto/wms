@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dimensiot – WMS</title>
+<link rel="stylesheet" href="../../styles/theme.css">
+</head>
+<body>
+<a class="back" href="../../../index.html">← WMS</a>
+<h1>📐 Dimensiot</h1>
+
+<div id="loading-view" class="loading">
+  <div class="icon">⏳</div>
+  <div class="msg">Haetaan dataa...</div>
+  <div id="load-error" class="error-box" style="display:none"></div>
+  <button class="btn" id="retry-btn" style="display:none;margin-top:1rem;width:auto;padding:10px 20px">🔄 Yritä uudelleen</button>
+</div>
+
+<div id="main-view" style="display:none">
+  <div class="top-bar">
+    <select id="count-sel">
+      <option value="20">Top 20</option>
+      <option value="50">Top 50</option>
+      <option value="100">Top 100</option>
+      <option value="9999">Kaikki</option>
+    </select>
+    <button class="btn secondary" id="export-btn" style="flex:1;padding:9px 8px;font-size:13px">⬇ Vie CSV</button>
+  </div>
+  <div class="progress-wrap"><div class="progress-fill" id="prog"></div></div>
+  <div class="status-row">
+    <span>Syötä olo-dimensiot (cm)</span>
+    <span id="done-count">0 / 0</span>
+  </div>
+  <div id="cards-container"></div>
+  <div id="summary-view" style="display:none">
+    <div class="summary">
+      <h2>✅ Valmis!</h2>
+      <p>Kaikki dimensiot tarkistettu.</p>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-val" id="sum-done">0</div><div class="stat-lbl">syötetty</div></div>
+        <div class="stat"><div class="stat-val" id="sum-skip">0</div><div class="stat-lbl">ohitettu</div></div>
+      </div>
+      <button class="export-btn" id="export-btn2">⬇ Lataa CSV</button>
+      <button class="btn" id="reset-btn">Uusi kierros</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="dimensiot.js"></script>
+</body>
+</html>

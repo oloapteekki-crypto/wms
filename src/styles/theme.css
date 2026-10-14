@@ -1,0 +1,69 @@
+/* WMS yhteinen teema (vihreä #1D9E75). Lähde: siirtoappi / dimensioappi. */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#1a1a1a;padding:1rem;max-width:480px;margin:0 auto}
+h1{font-size:18px;font-weight:600;margin-bottom:1rem;color:#111}
+a.back{display:inline-block;font-size:13px;color:#0F6E56;text-decoration:none;margin-bottom:.5rem}
+.btn{width:100%;padding:10px 12px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:14px;color:#333;transition:all .15s}
+.btn:hover{background:#f5f5f5}
+.btn.primary{background:#1D9E75;border-color:#1D9E75;color:#fff;font-weight:500}
+.btn.primary:hover{background:#0F6E56}
+.btn.skip-btn{color:#999;border-color:#e0e0e0}
+.controls{display:flex;gap:8px;margin-bottom:1rem;align-items:center}
+.phase-toggle{display:flex;border:1px solid #ddd;border-radius:8px;overflow:hidden;flex:2}
+.phase-btn{flex:1;padding:9px 6px;font-size:13px;background:#fff;border:none;cursor:pointer;color:#666;transition:all .15s}
+.phase-btn.active{background:#e8f5f0;color:#0F6E56;font-weight:600}
+select{flex:1;padding:9px 8px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:13px;color:#333}
+.progress-wrap{background:#e8e8e8;border-radius:6px;height:6px;margin-bottom:8px;overflow:hidden}
+.progress-fill{height:100%;background:#1D9E75;border-radius:6px;transition:width .3s}
+.status-row{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-bottom:1rem}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:1.25rem;margin-bottom:.75rem;transition:opacity .2s}
+.card.done{opacity:.35}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:1rem}
+.card-idx{font-size:12px;color:#aaa;font-weight:600;min-width:22px}
+.card-name{flex:1;font-size:14px;font-weight:600;color:#111;line-height:1.4}
+.card-sku{font-size:11px;color:#aaa;margin-top:2px}
+.diff-badge{font-size:11px;background:#fff0f0;color:#c0392b;padding:2px 8px;border-radius:6px;font-weight:600;white-space:nowrap}
+.location-box{border-radius:10px;padding:12px 14px;text-align:center;margin-bottom:.75rem}
+.location-box.from{background:#f5f5f5;border:1px solid #ddd}
+.location-box.to{background:#e8f5f0;border:1px solid #5DCAA5}
+.loc-label{font-size:10px;color:#999;margin-bottom:3px;text-transform:uppercase;letter-spacing:.06em}
+.loc-code{font-size:24px;font-weight:700;color:#111;letter-spacing:.04em}
+.location-box.to .loc-code{color:#0F6E56}
+.size-info{font-size:12px;color:#777;text-align:center;margin-bottom:1rem}
+.size-info strong{color:#111}
+.size-info .arrow{color:#1D9E75;font-weight:700;margin:0 4px}
+.btn-row{display:flex;gap:8px}
+.btn-row .btn{flex:1;padding:10px 8px;font-size:13px}
+.summary{text-align:center;padding:2.5rem 1rem;background:#fff;border-radius:12px;border:1px solid #e8e8e8}
+.summary h2{font-size:22px;font-weight:700;color:#111;margin-bottom:6px}
+.summary p{font-size:14px;color:#666;margin-bottom:1.5rem}
+.stat-row{display:flex;gap:8px;margin-bottom:1.5rem}
+.stat{flex:1;background:#f5f5f5;border-radius:8px;padding:12px;text-align:center}
+.stat-val{font-size:22px;font-weight:700;color:#111}
+.stat-lbl{font-size:11px;color:#999;margin-top:2px}
+.loading{text-align:center;padding:3rem 1rem}
+.loading .icon{font-size:32px;margin-bottom:12px}
+.loading .msg{font-size:14px;color:#555}
+.error-box{margin-top:1rem;padding:1rem;background:#fff0f0;border-radius:8px;border:1px solid #fcc;font-size:13px;color:#c0392b}
+.menu{display:grid;gap:10px}
+.menu a,.menu .soon{display:block;padding:14px 16px;border-radius:12px;border:1px solid #e8e8e8;background:#fff;color:#111;text-decoration:none;font-size:15px;font-weight:600}
+.menu a:hover{background:#e8f5f0;border-color:#5DCAA5}
+.menu .soon{color:#aaa;font-weight:500}
+.menu small{display:block;font-size:12px;font-weight:400;color:#888;margin-top:2px}
+
+/* Dimensiot */
+.top-bar{display:flex;gap:8px;margin-bottom:1rem;align-items:center}
+.btn.secondary{background:#f0f0f0;border-color:#ddd}
+.badge{font-size:11px;padding:2px 8px;border-radius:6px;white-space:nowrap;font-weight:600}
+.badge.tilaus{background:#e8f0fe;color:#1a56db}
+.loc-box{border-radius:10px;padding:10px 14px;margin-bottom:.75rem;background:#f5f5f5;border:1px solid #ddd}
+.ref-dims{font-size:12px;color:#777;margin-bottom:.75rem;text-align:center}
+.ref-dims strong{color:#333}
+.ref-dims.missing{color:#c0392b}
+.dim-inputs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:.75rem}
+.dim-group label{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.dim-group input{width:100%;padding:10px 8px;border-radius:8px;border:1px solid #ddd;font-size:18px;font-weight:600;text-align:center;background:#fff}
+.dim-group input:focus{outline:none;border-color:#1D9E75;box-shadow:0 0 0 2px #1D9E7530}
+.dim-group input.invalid{border-color:#c0392b}
+.export-btn{width:100%;padding:12px;border-radius:8px;border:none;background:#1D9E75;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:8px}
+.export-btn:hover{background:#0F6E56}

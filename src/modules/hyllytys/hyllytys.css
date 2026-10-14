@@ -1,0 +1,61 @@
+/* Hyllytys – portattu hyllytysappiuusi/index.html:n tyyleistä */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b;-webkit-tap-highlight-color:transparent}
+.app{max-width:480px;margin:0 auto;padding:16px 12px;min-height:100dvh}
+.card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px;margin-bottom:12px}
+h1{font-size:20px;font-weight:700;margin-bottom:4px}
+h2{font-size:16px;font-weight:700;margin-bottom:8px}
+.sub{font-size:12px;color:#64748b;margin-bottom:16px}
+.btn{width:100%;padding:14px 0;border-radius:10px;border:none;background:#1e293b;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.btn:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.btn:active:not(:disabled){opacity:.8}
+.btn-sm{padding:10px 20px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer}
+.btn-outline{background:#e2e8f0;color:#1e293b}
+.btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.btn-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.scan-input{width:100%;padding:14px 12px;border-radius:10px;border:2px solid #3b82f6;font-size:18px;font-family:monospace;font-weight:600;text-align:center;outline:none;background:#eff6ff;color:#1e40af}
+.scan-input:focus{border-color:#2563eb}
+.label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.mono{font-family:'JetBrains Mono','SF Mono','Courier New',monospace;font-size:12px}
+.error{color:#dc2626;font-size:13px;text-align:center;margin-top:6px}
+.flex{display:flex}.gap-8{gap:8px}.gap-6{gap:6px}.items-center{align-items:center}.justify-between{justify-content:space-between}.flex-1{flex:1}
+.mb-6{margin-bottom:6px}.mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}.text-center{text-align:center}
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;font-family:monospace}
+.badge-L{background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc}
+.badge-F{background:#fce7f3;color:#be185d;border:1.5px solid #f9a8d4}
+.badge-A{background:#ecfdf5;color:#047857;border:1.5px solid #6ee7b7}
+.badge-B{background:#fef3c7;color:#92400e;border:1.5px solid #fcd34d}
+.badge-U{background:#f3e8ff;color:#7c3aed;border:1.5px solid #c4b5fd}
+.badge-R{background:#fee2e2;color:#b91c1c;border:1.5px solid #fca5a5}
+.badge-J{background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc}
+.progress-bar{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:#1e293b;transition:width .3s}
+.qty-display{display:flex;align-items:center;justify-content:center;gap:4px;padding:14px;border-radius:10px;font-family:monospace}
+.qty-adj{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
+.qty-btn{width:44px;height:44px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.qty-manual{width:60px;text-align:center;font-size:18px;font-weight:700;font-family:monospace;border:2px solid #e2e8f0;border-radius:8px;padding:8px 4px}
+.location-big{font-size:20px;font-weight:700;font-family:monospace;color:#1e293b}
+.scan-result{padding:10px;border-radius:8px;margin-top:8px;font-size:13px;text-align:center;font-weight:600}
+.scan-ok{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+.scan-fail{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.cart-card{padding:20px;border-radius:12px;margin-bottom:12px;cursor:pointer;border:3px solid #e2e8f0;text-align:center;transition:all .15s}
+.cart-card:active{transform:scale(.97)}
+.report-row{padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.report-ok{background:#f0fdf4;border:1px solid #dcfce7}
+.report-warn{background:#fffbeb;border:1px solid #fde68a}
+.report-err{background:#fef2f2;border:1px solid #fecaca}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hidden{display:none!important}
+.select{width:100%;padding:10px;border-radius:8px;border:2px solid #e2e8f0;font-size:15px;font-weight:600;background:#fff}
+.text-input{width:100%;padding:10px;border-radius:8px;border:2px solid #e2e8f0;font-size:15px;background:#fff}
+.back{display:inline-block;font-size:13px;color:#1e40af;text-decoration:none;margin-bottom:8px}
+.notice{position:fixed;top:0;left:0;right:0;padding:10px;background:#eff6ff;border-bottom:2px solid #3b82f6;text-align:center;font-size:13px;font-weight:600;color:#1e40af;z-index:999}
+.mode-banner{font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;margin-bottom:12px}
+#scan-wrap{display:none;max-width:480px;margin:0 auto;padding:0 12px}
+.cam-btn{width:48px;height:48px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:22px;cursor:pointer;flex-shrink:0}
+.cam-btn.on{background:#eff6ff;border-color:#3b82f6}
+.cam-box{position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.cam-box video{width:100%;height:100%;object-fit:cover;display:block}
+.cam-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:75%;height:25%;border:2px solid rgba(255,255,255,.7);border-radius:8px;pointer-events:none}
+.cam-flash{position:absolute;inset:0;background:rgba(76,175,80,.3);pointer-events:none;opacity:0;transition:opacity .15s}

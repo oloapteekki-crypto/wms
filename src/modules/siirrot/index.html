@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Siirrot – WMS</title>
+<link rel="stylesheet" href="../../styles/theme.css">
+</head>
+<body>
+<a class="back" href="../../../index.html">← WMS</a>
+<h1>🔁 Siirrot</h1>
+
+<div id="loading-view" class="loading">
+  <div class="icon">⏳</div>
+  <div class="msg">Haetaan dataa...</div>
+  <div id="load-error" class="error-box" style="display:none"></div>
+  <button class="btn" id="retry-btn" style="display:none;margin-top:1rem;width:auto;padding:10px 20px">🔄 Yritä uudelleen</button>
+</div>
+
+<div id="main-view" style="display:none">
+  <div class="controls">
+    <div class="phase-toggle">
+      <button class="phase-btn active" id="btn-pick">🧺 Keräily</button>
+      <button class="phase-btn" id="btn-put">📥 Hyllytys</button>
+    </div>
+    <select id="count-sel">
+      <option value="10">Top 10</option>
+      <option value="20" selected>Top 20</option>
+      <option value="30">Top 30</option>
+      <option value="50">Top 50</option>
+    </select>
+  </div>
+  <div class="progress-wrap"><div class="progress-fill" id="prog"></div></div>
+  <div class="status-row">
+    <span id="phase-label"></span>
+    <span id="done-count">0 / 0</span>
+  </div>
+  <div id="cards-container"></div>
+  <div id="summary-view" style="display:none">
+    <div class="summary">
+      <h2 id="sum-title"></h2>
+      <p id="sum-sub"></p>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-val" id="sum-done">0</div><div class="stat-lbl">käsitelty</div></div>
+        <div class="stat"><div class="stat-val" id="sum-skip">0</div><div class="stat-lbl">ohitettu</div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="next-phase-btn">—</button>
+        <button class="btn" id="reset-btn">Uusi lenkki</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="siirrot.js"></script>
+</body>
+</html>

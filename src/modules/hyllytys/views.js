@@ -94,6 +94,9 @@ export function scanView(v) {
   const { S, fb, master, currentWorker } = v;
   const boxes = Object.keys(S.xmlBoxes);
   const scannedCount = Object.keys(fb.scannedBoxes).length;
+  // Vastaanotto-moduulin viemät erät (ei XML:ssä) lasketaan mukaan nimittäjään, ettei laskuri näytä esim. 6/5
+  const extraBoxes = Object.keys(fb.scannedBoxes).filter((k) => !(k in S.xmlBoxes)).length;
+  const totalBoxes = boxes.length + extraBoxes;
   const all = allScannedEnriched(fb.scannedBoxes, master);
   let rxQ = 0, newQ = 0, palletQ = 0;
   for (const i of all) {
@@ -158,7 +161,7 @@ export function scanView(v) {
 
   return `
     <div class="card"><h1>Purku</h1>
-      <p class="sub"><span class="live-dot"></span><span id="live-counters">${scannedCount}/${boxes.length} laatikkoa luettu</span>${currentWorker ? " — 👤 " + esc(currentWorker) : ""}</p>
+      <p class="sub"><span class="live-dot"></span><span id="live-counters">${scannedCount}/${totalBoxes} laatikkoa luettu</span>${currentWorker ? " — 👤 " + esc(currentWorker) : ""}</p>
       ${result(S.lastScanResult)}${err(S.error)}
       ${lookup}${unscannedHtml}</div>
     ${activeBox}

@@ -1,0 +1,47 @@
+/* Raportti: tietokonenäkymä, yhteinen vihreä teema (#1D9E75). Teksti aina neutraaleissa sävyissä, ei sarjan värissä. */
+body.report{max-width:1100px;padding:1.25rem;--ink:#1a1a1a;--muted:#6b6b6b;--grid:#e8e8e8;--bar:#1D9E75;--warn:#b45309;--bad:#c0392b}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:.5rem}
+.head h1{margin:0}
+.sub{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bar);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.datepick{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.datepick input{padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:13px}
+h2{font-size:15px;font-weight:700;margin:1.25rem 0 .5rem;color:var(--ink)}
+h3{font-size:13px;font-weight:600;margin-bottom:.6rem;color:var(--ink)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.tile{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:12px 14px}
+.tile-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.tile-value{font-size:26px;font-weight:700;color:var(--ink);margin-top:2px}
+.tile-value .of{font-size:14px;font-weight:500;color:var(--muted)}
+.tile-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:800px){.grid2{grid-template-columns:1fr}}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.grid2 .card{margin-bottom:0}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-weight:600;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--grid);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td{padding:6px;border-bottom:1px solid #f3f3f3;color:var(--ink)}
+.r{text-align:right;font-variant-numeric:tabular-nums}
+.short{color:var(--warn);font-weight:700}
+tr.stale td{color:var(--bad)}
+.chip{font-size:10px;background:#fff3e0;color:var(--warn);border-radius:4px;padding:1px 6px;font-weight:600}
+.mono{font-family:monospace}
+.empty{font-size:12px;color:var(--muted);padding:16px 0;text-align:center}
+.small{font-size:12px;margin-top:8px}
+.muted{color:var(--muted)}
+.foot{text-align:center;margin-top:8px}
+.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--grid);stroke-width:1}
+.chart .axis{font-size:10px;fill:var(--muted)}
+.chart .mark{fill:var(--bar)}
+.chart .bar:hover .mark{opacity:.8}
+.tableview{margin-top:6px;font-size:12px}
+.tableview summary{cursor:pointer;color:var(--muted)}
+.tip{position:fixed;background:#1a1a1a;color:#fff;font-size:12px;padding:4px 8px;border-radius:6px;pointer-events:none;z-index:10}
+.mode-banner{font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;margin-bottom:12px}
+/* kirjautumisnäkymä (jaettu auth-ui) */
+.label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase}
+.text-input{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:15px;background:#fff}
+.mb-12{margin-bottom:12px}
+.error{color:#c0392b;font-size:13px;text-align:center;margin-top:6px}

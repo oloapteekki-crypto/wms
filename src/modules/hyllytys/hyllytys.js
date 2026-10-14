@@ -204,7 +204,10 @@ function subscribeSession() {
     if (S.phase === "cartSelect") render();
     else if (S.phase === "scan" && S.xmlBoxes) {
       const el = $("live-counters");
-      if (el) el.textContent = `${Object.keys(fb.scannedBoxes).length}/${Object.keys(S.xmlBoxes).length} laatikkoa luettu`;
+      if (el) {
+        const scanned = Object.keys(fb.scannedBoxes);
+        el.textContent = `${scanned.length}/${Object.keys(S.xmlBoxes).length + scanned.filter((k) => !(k in S.xmlBoxes)).length} laatikkoa luettu`;
+      }
     }
   });
 }

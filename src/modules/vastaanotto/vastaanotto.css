@@ -1,0 +1,73 @@
+/* Vastaanotto: yhteinen vihreä teema (#1D9E75). Tilavärit kantavat tilan lisäksi tekstillä (ei pelkkää väriä). */
+body.recv{max-width:640px;--ink:#1a1a1a;--muted:#6b6b6b;--grid:#e8e8e8}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:14px 16px;margin-bottom:12px}
+h2{font-size:15px;font-weight:700;margin-bottom:8px}
+.muted{color:var(--muted)}.small{font-size:12px}
+.mono{font-family:monospace;font-size:12px}
+.mb-12{margin-bottom:12px}
+.label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px;text-transform:uppercase}
+.select,.text-input{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:15px;background:#fff}
+.error{color:#c0392b;font-size:13px;text-align:center;margin-top:6px}
+.scan-result{padding:10px;border-radius:8px;margin-top:8px;font-size:13px;text-align:center;font-weight:600}
+.scan-ok{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+.scan-fail{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.mode-banner{font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;margin-bottom:12px}
+.linkbtn{background:none;border:none;cursor:pointer;padding:0}
+.btn-sm{padding:10px 14px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.btn-outline{background:#e8f5f0;color:#0F6E56}
+.btn-ok{background:#f0fdf4;color:#16a34a;border:1px solid #86efac}
+.btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5}
+.flex{display:flex}.justify-between{justify-content:space-between}.items-center{align-items:center}
+.big-pct{font-size:24px;font-weight:700}
+.progress-bar{height:8px;border-radius:4px;background:#e8e8e8;overflow:hidden}
+.progress-fill{height:100%;background:#1D9E75;transition:width .3s}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;border:1px solid transparent}
+.scanrow{display:flex;gap:8px;margin:8px 0 4px}
+.scan-input{flex:1;padding:12px;border-radius:10px;border:2px solid #1D9E75;font-size:16px;font-family:monospace;font-weight:600;text-align:center;background:#f0faf6;outline:none}
+.cam-btn{width:48px;border-radius:10px;border:2px solid #e8e8e8;background:#fff;font-size:20px;cursor:pointer}
+.cam-btn.on{border-color:#1D9E75;background:#e8f5f0}
+#cam-wrap{display:none;margin:0 0 8px}
+.cam-box{position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.cam-box video{width:100%;height:100%;object-fit:cover;display:block}
+.cam-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:75%;height:25%;border:2px solid rgba(255,255,255,.7);border-radius:8px;pointer-events:none}
+.cam-flash{position:absolute;inset:0;background:rgba(76,175,80,.3);pointer-events:none;opacity:0;transition:opacity .15s}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tab{flex:1;padding:10px 4px;border-radius:8px;border:1px solid #e8e8e8;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab.on{background:#e8f5f0;color:#0F6E56;border-color:#5DCAA5}
+.filters{display:flex;gap:6px;margin-bottom:8px}
+.chipbtn{padding:6px 12px;border-radius:16px;border:1px solid #ddd;background:#fff;font-size:12px;cursor:pointer}
+.chipbtn.on{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.order-row{padding:10px;border:1px solid #e8e8e8;border-radius:8px;margin-bottom:6px;cursor:pointer}
+.order-row:hover{background:#f0faf6}
+/* tilavärit (tausta + reuna), teksti aina ink */
+.st-pending{background:#f8f8f8;border-color:#e0e0e0}
+.st-date{background:#e8f0fe;border-color:#bcd0fb}
+.st-ok{background:#f0fdf4;border-color:#86efac}
+.st-under{background:#fffbeb;border-color:#fcd34d}
+.st-over{background:#f5f3ff;border-color:#c4b5fd}
+.st-none{background:#fef2f2;border-color:#fca5a5}
+.chip.st-pending,.chip.st-date,.chip.st-ok,.chip.st-under,.chip.st-over,.chip.st-none{border-width:1px;border-style:solid;color:var(--ink)}
+.line{border:1px solid #e0e0e0;border-radius:10px;margin-bottom:6px;overflow:hidden;background:#fff}
+.line.st-ok{border-color:#86efac}.line.st-under{border-color:#fcd34d}.line.st-over{border-color:#c4b5fd}.line.st-none{border-color:#fca5a5}.line.st-date{border-color:#bcd0fb}
+.line-head{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;cursor:pointer}
+.line.open{box-shadow:0 0 0 2px #1D9E75}
+.line-name{font-size:13px;font-weight:600;color:var(--ink)}
+.line-qty{text-align:right;white-space:nowrap}
+.badge-st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.qtys{font-size:15px}
+.line-body{padding:10px 12px;border-top:1px solid var(--grid);background:#fafafa}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.qbtn{width:44px;height:44px;border-radius:10px;border:2px solid #ddd;background:#fff;font-size:22px;font-weight:700;cursor:pointer}
+.qty-input{width:80px;height:44px;text-align:center;font-size:20px;font-weight:700;border:2px solid #ddd;border-radius:10px}
+.date-input{padding:10px;border:2px solid #ddd;border-radius:10px;font-size:14px}
+.date-text{flex:1;min-width:140px;padding:10px;border:2px solid #ddd;border-radius:10px;font-size:14px}
+.voice-btn{width:56px;height:56px;border-radius:50%;border:none;font-size:24px;cursor:pointer}
+.voice-btn.idle{background:#e8f5f0}
+.voice-btn.listening{background:#dc2626;color:#fff;animation:pulse2 1.5s infinite}
+@keyframes pulse2{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.voice-help{font-size:13px;color:var(--muted);flex:1}
+.cart-item{display:flex;justify-content:space-between;gap:8px;padding:8px;border-radius:8px;border:1px solid #f0f0f0;margin-bottom:4px}
+.empty{text-align:center;color:var(--muted);padding:20px;font-size:13px}
+.btn{width:100%;padding:12px;border-radius:10px;border:none;background:#1D9E75;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.btn:disabled{background:#e2e8f0;color:#94a3b8}

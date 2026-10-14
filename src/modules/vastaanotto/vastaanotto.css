@@ -67,6 +67,11 @@ h2{font-size:15px;font-weight:700;margin-bottom:8px}
 .voice-btn.listening{background:#dc2626;color:#fff;animation:pulse2 1.5s infinite}
 @keyframes pulse2{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .voice-help{font-size:13px;color:var(--muted);flex:1}
+.where{display:inline-block;margin-top:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;border:1.5px solid #ccc;background:#fff;color:var(--ink)}
+.cart-banner{border:3px solid;border-radius:12px;padding:10px 12px;margin-bottom:10px;text-align:center}
+.cart-banner-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cart-banner-main{font-size:26px;font-weight:800;color:var(--ink);line-height:1.2}
+.cart-banner-sub{font-size:14px;font-weight:600;color:var(--ink)}
 .cart-item{display:flex;justify-content:space-between;gap:8px;padding:8px;border-radius:8px;border:1px solid #f0f0f0;margin-bottom:4px}
 .empty{text-align:center;color:var(--muted);padding:20px;font-size:13px}
 .btn{width:100%;padding:12px;border-radius:10px;border:none;background:#1D9E75;color:#fff;font-size:15px;font-weight:600;cursor:pointer}

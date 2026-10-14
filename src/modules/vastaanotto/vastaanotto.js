@@ -12,7 +12,7 @@ import { loginHtml, doLogin } from "../../lib/auth-ui.js";
 import { $ } from "../../lib/ui.js";
 import { WORKERS } from "../../config/workers.js";
 import { parseMaster, eanMatches, boxKey } from "../hyllytys/domain.js";
-import { parseOrderWorkbook, lineKey, lineStatus, buildXml, xmlFileName, splitToCarts } from "./domain.js";
+import { parseOrderWorkbook, lineKey, lineStatus, buildXml, xmlFileName, splitToCarts, placement } from "./domain.js";
 import { startView, orderView, deviationRows } from "./views.js";
 
 const GCS_CSV = "https://storage.googleapis.com/olo-export-data/hyllytys-app-export000000000000.csv";
@@ -86,6 +86,8 @@ function openOrder(id) {
     S.xmlAt = val.xmlAt || null;
     if (S.phase !== "order") S.phase = "order";
     scheduleRender();
+    // Hyllypaikat tarvitaan heti, jotta sovellus voi kertoa skannattaessa mihin kärryyn tuote laitetaan
+    if (!S.master && !S.masterLoading && !S.masterError) loadMaster();
   });
 }
 
@@ -125,18 +127,18 @@ function setRec(key, patch) {
 
 function lineByKey(key) { return S.order.lines.find((l) => l.key === key); }
 
-function advanceIfDone(key) {
+// Rivi valmis (määrä + päiväys): sulje rivi ja muistuta kärrystä. Seuraavaan riviin EI siirrytä itsestään:
+// tuotteet puretaan laatikoista ja skannataan missä järjestyksessä tahansa.
+function finishLine(key) {
   const l = lineByKey(key);
   const st = lineStatus(l, S.recs[key]);
   if (st === "pending" || st === "needsDate") return false;
-  const lines = S.order.lines;
-  const i = lines.findIndex((x) => x.key === key);
-  for (let d = 1; d <= lines.length; d++) {
-    const n = lines[(i + d) % lines.length];
-    const s = lineStatus(n, S.recs[n.key]);
-    if (s === "pending" || s === "needsDate") { selectLine(n.key); return true; }
-  }
-  S.selectedKey = null;
+  const p = S.recs[key].qty > 0 ? placement(l, S.master) : null;
+  stopVoice();
+  setState({
+    selectedKey: null, voiceCandidate: null, error: null,
+    result: { type: "ok", text: `✓ ${l.name}${p ? " → " + p.label + (p.aisle ? " (levy " + p.aisle + ")" : "") : st === "none" ? " — ei tullut" : ""}` },
+  });
   return true;
 }
 
@@ -174,7 +176,7 @@ function onVoiceText(raw) {
       if (YES.includes(t)) {
         const q = voice.pending;
         setRec(key, { qty: q });
-        if (q === 0) { stopVoice(); advanceIfDone(key); setState({ result: { type: "ok", text: "✓ Ei tullut" } }); return; }
+        if (q === 0) { finishLine(key); return; }
         voice.mode = "date"; voice.pending = null;
         say("🎤 Sano päiväys (tai: ei päiväystä)", `✓ Määrä ${q}`);
         return;
@@ -192,10 +194,10 @@ function onVoiceText(raw) {
 
   // päiväys
   if (voice.mode === "dateConfirm") {
-    if (YES.includes(t)) { const d = voice.pending; stopVoice(); setRec(key, { end: d.ymd }); advanceIfDone(key); setState({ result: { type: "ok", text: "✓ " + line.name } }); return; }
+    if (YES.includes(t)) { const d = voice.pending; setRec(key, { end: d.ymd }); finishLine(key); return; }
     if (NO.includes(t)) { voice.mode = "date"; voice.pending = null; say("🎤 Sano päiväys uudelleen"); return; }
   }
-  if (/^(ei päiväystä|ei päivää|ei pvm|ei)$/.test(t)) { stopVoice(); setRec(key, { end: "" }); advanceIfDone(key); setState({ result: { type: "ok", text: "✓ Ei päiväystä" } }); return; }
+  if (/^(ei päiväystä|ei päivää|ei pvm|ei)$/.test(t)) { setRec(key, { end: "" }); finishLine(key); return; }
   const d = parseSpokenDate(t);
   if (!d) { say(`🎤 "${t}" — en ymmärtänyt päiväystä, sano uudelleen`); return; }
   voice.pending = d; voice.mode = "dateConfirm";
@@ -314,8 +316,8 @@ const actions = {
   "select-line": (d) => (S.selectedKey === d.key ? setState({ selectedKey: null }) : selectLine(d.key)),
   "qty-delta": (d) => { const q = Math.max(0, (S.recs[d.key]?.qty || 0) + parseInt(d.delta, 10)); setRec(d.key, { qty: q }); },
   "all-came": (d) => { const l = lineByKey(d.key); setRec(d.key, { qty: l.ordered }); },
-  "none-came": (d) => { setRec(d.key, { qty: 0 }); advanceIfDone(d.key); },
-  "no-date": (d) => { setRec(d.key, { end: "" }); advanceIfDone(d.key); },
+  "none-came": (d) => { setRec(d.key, { qty: 0 }); finishLine(d.key); },
+  "no-date": (d) => { setRec(d.key, { end: "" }); finishLine(d.key); },
   "start-voice": (d) => startVoice(d.key),
   "stop-voice": () => { stopVoice(); scheduleRender(); },
   "toggle-cam": toggleCamera,
@@ -353,7 +355,7 @@ app.addEventListener("change", (e) => {
   if (t.id === "end-date" && t.value) {
     const ymd = t.value.replace(/-/g, "");
     setRec(t.dataset.key, { end: ymd });
-    advanceIfDone(t.dataset.key);
+    finishLine(t.dataset.key);
   }
 });
 
@@ -367,8 +369,7 @@ app.addEventListener("keydown", (e) => {
     const key = e.target.dataset.key;
     e.target.value = "";
     setRec(key, { end: d.ymd });
-    setState({ error: null, result: { type: "ok", text: "✓ " + d.label } });
-    advanceIfDone(key);
+    if (!finishLine(key)) setState({ error: null, result: { type: "ok", text: "✓ " + d.label } });
     return;
   }
   if (e.target.id === "qty-input") { e.target.blur(); }

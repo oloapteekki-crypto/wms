@@ -157,6 +157,19 @@ export function xmlFileName(supplier, orderDate) {
   return `${orderDate.slice(2)}_${supplier.name.replace(/[\\/:*?"<>|]/g, "_")}.xml`;
 }
 
+/* ───────── Mihin tuote laitetaan (kärry / levy / paikka) ───────── */
+// Palauttaa {kind, icon, label, color, location, aisle} tai null jos hyllypaikkoja ei ole ladattu.
+export function placement(line, master) {
+  if (!master) return null;
+  const e = enrichItem({ vnr: line.sku, altVnr: "", name: line.name, qty: line.ordered }, master);
+  if (e.parsedLoc?.type === "rx") return { kind: "rx", icon: "💊", label: "Reseptilääke", color: "#b91c1c", location: e.location, aisle: null };
+  if (e.parsedLoc?.type === "cold") return { kind: "cold", icon: "❄️", label: "Jääkaappi", color: "#0369a1", location: e.location, aisle: null };
+  if (!e.parsedLoc) return { kind: "new", icon: "📦", label: "UUSI-hyllyyn", color: "#f59e0b", location: null, aisle: null };
+  const cart = CARTS.find((c) => c.id === e.cartId);
+  if (cart) return { kind: "cart", icon: cart.icon, label: cart.name, color: cart.color, location: e.location, aisle: e.physAisle, cartId: cart.id };
+  return { kind: "other", icon: "🏗", label: "Lavapaikka / muu paikka", color: "#64748b", location: e.location, aisle: e.physAisle };
+}
+
 /* ───────── Kärryjako hyllytysreitin mukaan ───────── */
 // recs: saapuneet. master: tuoterekisteri (parseMaster). Palauttaa ryhmät ja tuotteet reittijärjestyksessä.
 export function splitToCarts(lines, recs, master) {

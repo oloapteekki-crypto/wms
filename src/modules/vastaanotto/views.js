@@ -1,7 +1,7 @@
 // Vastaanoton näkymät (puhtaita funktioita; kaikki data esc():n kautta).
 import { esc } from "../../lib/ui.js";
 import { formatYmd } from "../../lib/spoken.js";
-import { lineKey, lineStatus, summarize, splitToCarts } from "./domain.js";
+import { lineKey, lineStatus, summarize, splitToCarts, placement } from "./domain.js";
 
 const STATUS = {
   pending: { label: "Odottaa", cls: "st-pending" },
@@ -44,10 +44,20 @@ function lineCard(l, v) {
   const sku = esc(l.sku);
   const received = rec.qty ?? "–";
   const dateTxt = rec.qty > 0 ? (rec.end ? formatYmd(rec.end) : rec.end === "" ? "ei pvm" : "pvm?") : "";
+  const pl = placement(l, S.master);
+  const chip = pl ? `<span class="where" style="border-color:${pl.color}">${pl.icon} ${esc(pl.label)}${pl.aisle ? " · levy " + esc(pl.aisle) : ""}${pl.location ? " · " + esc(pl.location) : ""}</span>` : "";
+  const banner = open
+    ? pl
+      ? `<div class="cart-banner" style="border-color:${pl.color};background:${pl.color}18"><div class="cart-banner-label">${pl.kind === "cart" ? "Laita kärryyn" : "Ei kärryyn"}</div>
+          <div class="cart-banner-main">${pl.icon} ${esc(pl.label)}</div>
+          <div class="cart-banner-sub">${pl.aisle ? "Levy " + esc(pl.aisle) : ""}${pl.aisle && pl.location ? " · " : ""}${pl.location ? "paikka " + esc(pl.location) : pl.kind === "new" ? "ei hyllypaikkaa" : ""}</div></div>`
+      : S.masterLoading ? `<div class="muted small" style="padding:8px 0">Haetaan hyllypaikkaa…</div>`
+        : `<div class="muted small" style="padding:8px 0">Kärrytieto ei ole saatavilla (hyllypaikkoja ei ladattu).</div>`
+    : "";
   let body = "";
   if (open) {
     const cand = S.voiceCandidate;
-    body = `<div class="line-body">
+    body = `<div class="line-body">${banner}
       <div class="row">
         <button class="qbtn" data-action="qty-delta" data-key="${esc(key)}" data-delta="-1">−</button>
         <input type="number" inputmode="numeric" min="0" id="qty-input" class="qty-input" value="${rec.qty ?? ""}" placeholder="saapui" data-key="${esc(key)}">
@@ -71,7 +81,7 @@ function lineCard(l, v) {
   return `<div class="line ${STATUS[st].cls}${open ? " open" : ""}" id="line-${sku}">
     <div class="line-head" data-action="select-line" data-key="${esc(key)}">
       <div class="line-main"><div class="line-name">${esc(l.name)}</div>
-        <div class="mono muted">${sku}${l.ean ? " | EAN " + esc(l.ean) : ""}</div></div>
+        <div class="mono muted">${sku}${l.ean ? " | EAN " + esc(l.ean) : ""}</div>${chip ? `<div>${chip}</div>` : ""}</div>
       <div class="line-qty"><div class="badge-st">${STATUS[st].label}</div>
         <div class="qtys"><b>${received}</b> / ${l.ordered}</div>${dateTxt ? `<div class="muted small">${esc(dateTxt)}</div>` : ""}</div>
     </div>${body}</div>`;
@@ -100,7 +110,8 @@ export function orderView(v) {
       <div class="scanrow"><input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa tuotteen EAN" autocomplete="off">
         ${v.camOk ? `<button class="cam-btn${v.camOn ? " on" : ""}" data-action="toggle-cam">📷</button>` : ""}</div>
       <label class="small muted"><input type="checkbox" data-change="scan-adds" ${v.scanAdds ? "checked" : ""}> Skannaus lisää +1 saapuneeseen</label>
-      ${result(S.result)}${err(S.error)}</div>
+      ${result(S.result)}${err(S.error)}
+      ${S.masterError ? `<div class="error">⚠ Kärrytieto ei näy: ${esc(S.masterError)} <button class="btn-sm btn-outline" data-action="load-master">Yritä uudelleen</button></div>` : ""}</div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="tab${S.tab === k ? " on" : ""}" data-action="tab" data-tab="${k}">${l}</button>`).join("")}</div>
     ${S.tab === "lines" ? linesTab(filtered, v, sum) : S.tab === "carts" ? cartsTab(v) : S.tab === "devs" ? devsTab(v) : xmlTab(v, sum)}`;
 }

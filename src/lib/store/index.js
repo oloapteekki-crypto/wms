@@ -4,6 +4,8 @@ import firebaseConfig from "../../config/firebase-config.js";
 import { createMemoryStore } from "./memory.js";
 
 export async function createStore() {
+  // ?local=1 pakottaa paikallisen (laitekohtaisen) tilan: testaukseen ja esittelyyn. Ei pääsyä Firebase-dataan.
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).get("local") === "1") return createMemoryStore();
   if (firebaseConfig) {
     const { createFirebaseStore } = await import("./firebase.js");
     return createFirebaseStore(firebaseConfig);

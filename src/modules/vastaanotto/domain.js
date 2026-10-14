@@ -62,6 +62,32 @@ export async function parseOrderWorkbook(xlsx, fileName = "") {
   return { id: orderId(supplier.id, orderDate), supplier, orderDate, fileName, lines };
 }
 
+/* ───────── Vastaanotto: laatikkoerät ───────── */
+// Sama tuote voi tulla usessa laatikossa. Tallennus: rec/{rivi} = {none?: true, b: {erä-id: {qty, end?, t, by}}}.
+// buildRec muodostaa tästä rivin yhteenvedon: {qty, end, batches[]}; qty on erien summa, end on null jos jollakin erällä puuttuu päiväys.
+export function buildRec(raw) {
+  if (!raw) return null;
+  const batches = Object.entries(raw.b || {})
+    .map(([id, b]) => ({ id, qty: Number(b.qty) || 0, end: b.end === undefined ? null : b.end, t: b.t || 0, by: b.by || "" }))
+    .sort((a, b) => a.t - b.t);
+  if (!batches.length) return raw.none ? { qty: 0, end: "", batches: [], none: true } : null;
+  const qty = batches.reduce((s, b) => s + b.qty, 0);
+  return { qty, end: batches.some((b) => b.end === null) ? null : batches[batches.length - 1].end, batches };
+}
+
+// Erät XML:ää varten: yhdistää saman päiväyksen erät. Ilman batches-kenttää (vanha muoto) käytetään qty/end.
+export function dateGroups(rec) {
+  const src = rec?.batches ?? (rec?.qty > 0 ? [{ qty: rec.qty, end: rec.end }] : []);
+  const groups = [];
+  for (const b of src) {
+    if (!(b.qty > 0)) continue;
+    const end = b.end || "";
+    const g = groups.find((x) => x.end === end);
+    if (g) g.qty += b.qty; else groups.push({ end, qty: b.qty });
+  }
+  return groups;
+}
+
 /* ───────── Vastaanotto: rivin tila ───────── */
 // rec: {qty: number|null, end: null (ei asetettu) | "" (ei päiväystä) | "YYYYMMDD"}
 export function lineStatus(line, rec) {
@@ -91,17 +117,22 @@ const money = (n) => (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
 
 // Rivit joilla on tilausmäärä > 0 (myös ei-saapuneet, jolloin DeliveredQuantity 0). RowAmount = tilattu × hinta (kuten taulukossa).
 export function buildXml({ supplier, lines, recs }) {
-  const rows = lines.map((l, i) => {
-    const rec = recs[l.key] || {};
-    const delivered = rec.qty || 0;
-    const end = delivered > 0 ? rec.end || "" : "";
+  // Yksi rivi per eri päiväys; tilattu määrä ja rivisumma ensimmäiselle riville, jatkoriveille 0
+  const rowDefs = [];
+  for (const l of lines) {
+    const groups = dateGroups(recs[l.key]);
+    if (!groups.length) rowDefs.push({ l, delivered: 0, end: "", first: true });
+    else groups.forEach((g, gi) => rowDefs.push({ l, delivered: g.qty, end: g.end, first: gi === 0 }));
+  }
+  const rows = rowDefs.map(({ l, delivered, end, first }, i) => {
+    const ordered = first ? l.ordered : 0;
     return `  <InvoiceRow>
     <ArticleIdentifier>${esc(l.sku)}</ArticleIdentifier>
     <ArticleGroupIdentifier></ArticleGroupIdentifier>
     <ArticleName>${esc(l.name)}</ArticleName>
     <BuyerArticleIdentifier>${esc(l.sku)}</BuyerArticleIdentifier>
     <DeliveredQuantity QuantityUnitCode="Kpl">${delivered}</DeliveredQuantity>
-    <OrderedQuantity QuantityUnitCode="Kpl">${l.ordered}</OrderedQuantity>
+    <OrderedQuantity QuantityUnitCode="Kpl">${ordered}</OrderedQuantity>
     <EndDate>${esc(end)}</EndDate>
     <OriginalInvoiceNumber></OriginalInvoiceNumber>
     <UnitPriceAmount AmountCurrencyIdentifier="EUR" UnitPriceUnitCode="e/kpl">${money(l.price)}</UnitPriceAmount>
@@ -112,7 +143,7 @@ export function buildXml({ supplier, lines, recs }) {
       <RowManufacturerIdentifier></RowManufacturerIdentifier>
       <RowAgreementIdentifier></RowAgreementIdentifier>
     </RowDeliveryDetails>
-    <RowAmount AmountCurrencyIdentifier="EUR">${money(l.price * l.ordered)}</RowAmount>
+    <RowAmount AmountCurrencyIdentifier="EUR">${money(l.price * ordered)}</RowAmount>
   </InvoiceRow>`;
   }).join("\n");
 

@@ -76,3 +76,8 @@ h2{font-size:15px;font-weight:700;margin-bottom:8px}
 .empty{text-align:center;color:var(--muted);padding:20px;font-size:13px}
 .btn{width:100%;padding:12px;border-radius:10px;border:none;background:#1D9E75;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
 .btn:disabled{background:#e2e8f0;color:#94a3b8}
+.box-list{margin-bottom:8px}
+.box{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid #e8e8e8;border-radius:8px;background:#fff;margin-bottom:4px;font-size:13px}
+.box .linkbtn{color:#dc2626;font-size:16px;padding:4px 8px}
+.box-sum{font-size:13px;text-align:right;color:var(--ink)}
+.box-form{border-top:1px dashed #ccc;padding-top:6px}

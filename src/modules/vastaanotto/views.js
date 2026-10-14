@@ -43,7 +43,8 @@ function lineCard(l, v) {
   const open = S.selectedKey === key;
   const sku = esc(l.sku);
   const received = rec.qty ?? "–";
-  const dateTxt = rec.qty > 0 ? (rec.end ? formatYmd(rec.end) : rec.end === "" ? "ei pvm" : "pvm?") : "";
+  const nb = rec.batches?.length || 0;
+  const dateTxt = nb > 1 ? `${nb} laatikkoa` : rec.qty > 0 ? (rec.end ? formatYmd(rec.end) : rec.end === "" ? "ei pvm" : "pvm?") : "";
   const pl = placement(l, S.master);
   const chip = pl ? `<span class="where" style="border-color:${pl.color}">${pl.icon} ${esc(pl.label)}${pl.aisle ? " · levy " + esc(pl.aisle) : ""}${pl.location ? " · " + esc(pl.location) : ""}</span>` : "";
   const banner = open
@@ -57,20 +58,28 @@ function lineCard(l, v) {
   let body = "";
   if (open) {
     const cand = S.voiceCandidate;
+    const dr = S.draft.key === key ? S.draft : { qty: null, end: null };
+    const left = Math.max(0, l.ordered - (rec.qty || 0));
+    const boxes = rec.none ? `<div class="box-list"><div class="box"><span>Merkitty: ei tullut</span> <button class="linkbtn small" data-action="clear-line" data-key="${esc(key)}">Peru</button></div></div>`
+      : rec.batches?.length ? `<div class="box-list">${rec.batches.map((b, i) => `<div class="box"><span><b>Laatikko ${i + 1}:</b> ${b.qty} kpl · ${b.end === null ? `<input type="date" class="date-input small" data-change="batch-end" data-key="${esc(key)}" data-id="${esc(b.id)}"> pvm puuttuu` : b.end ? esc(formatYmd(b.end)) : "ei pvm"}</span>
+        <button class="linkbtn small" data-action="del-batch" data-key="${esc(key)}" data-id="${esc(b.id)}" aria-label="Poista laatikko">✕</button></div>`).join("")}
+        <div class="box-sum">Yhteensä <b>${rec.qty}</b> / ${l.ordered}${left > 0 ? ` · puuttuu ${left}` : rec.qty > l.ordered ? ` · yli ${rec.qty - l.ordered}` : ""}</div></div>` : "";
     body = `<div class="line-body">${banner}
+      ${boxes}
+      <div class="box-form"><div class="label">${rec.batches?.length ? "Uusi laatikko" : "Laatikko"}</div>
       <div class="row">
         <button class="qbtn" data-action="qty-delta" data-key="${esc(key)}" data-delta="-1">−</button>
-        <input type="number" inputmode="numeric" min="0" id="qty-input" class="qty-input" value="${rec.qty ?? ""}" placeholder="saapui" data-key="${esc(key)}">
+        <input type="number" inputmode="numeric" min="0" id="qty-input" class="qty-input" value="${dr.qty ?? ""}" placeholder="kpl" data-key="${esc(key)}">
         <button class="qbtn" data-action="qty-delta" data-key="${esc(key)}" data-delta="1">+</button>
-        <button class="btn-sm btn-ok" data-action="all-came" data-key="${esc(key)}">✓ Kaikki tuli (${l.ordered})</button>
-        <button class="btn-sm btn-danger" data-action="none-came" data-key="${esc(key)}">✗ Ei tullut</button>
+        ${left > 0 ? `<button class="btn-sm btn-outline" data-action="rest-came" data-key="${esc(key)}">Loput (${left})</button>` : ""}
       </div>
-      ${rec.qty > 0 ? `<div class="row">
-        <input type="date" id="end-date" class="date-input" value="${rec.end ? `${rec.end.slice(0, 4)}-${rec.end.slice(4, 6)}-${rec.end.slice(6)}` : ""}" data-key="${esc(key)}">
-        <input type="text" id="end-text" class="date-text" placeholder="8/26 tai 16.12.2026" data-key="${esc(key)}" autocomplete="off">
-        <button class="btn-sm btn-outline" data-action="no-date" data-key="${esc(key)}">Ei päiväystä</button>
-      </div>` : ""}
       <div class="row">
+        <input type="date" id="end-date" class="date-input" value="${dr.end ? `${dr.end.slice(0, 4)}-${dr.end.slice(4, 6)}-${dr.end.slice(6)}` : ""}" data-key="${esc(key)}">
+        <input type="text" id="end-text" class="date-text" placeholder="8/26 tai 16.12.2026" data-key="${esc(key)}" autocomplete="off">
+        <button class="btn-sm ${dr.end === "" ? "btn-ok" : "btn-outline"}" data-action="no-date" data-key="${esc(key)}">Ei päiväystä${dr.end === "" ? " ✓" : ""}</button>
+      </div>
+      <div class="row"><button class="btn" data-action="add-batch" data-key="${esc(key)}">＋ Kirjaa laatikko${dr.qty > 0 ? ` (${dr.qty} kpl)` : ""}</button></div></div>
+      ${rec.batches?.length ? "" : `<div class="row"><button class="btn-sm btn-danger" data-action="none-came" data-key="${esc(key)}">✗ Ei tullut</button></div>`}      <div class="row">
         <button class="voice-btn ${v.voiceOn ? "listening" : "idle"}" data-action="${v.voiceOn ? "stop-voice" : "start-voice"}" data-key="${esc(key)}">${v.voiceOn ? "⏹" : "🎤"}</button>
         <div class="voice-help">${v.voiceOn ? esc(S.voiceText || "Kuuntelen…") : "Sano määrä ja päiväys. Kuittaa: oikein / väärin."}</div>
       </div>
@@ -109,7 +118,6 @@ export function orderView(v) {
         <span class="chip st-none">Ei tullut ${sum.none}</span><span class="chip st-date">Puuttuu pvm ${sum.needsDate}</span><span class="chip st-pending">Odottaa ${sum.pending}</span></div>
       <div class="scanrow"><input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa tuotteen EAN" autocomplete="off">
         ${v.camOk ? `<button class="cam-btn${v.camOn ? " on" : ""}" data-action="toggle-cam">📷</button>` : ""}</div>
-      <label class="small muted"><input type="checkbox" data-change="scan-adds" ${v.scanAdds ? "checked" : ""}> Skannaus lisää +1 saapuneeseen</label>
       ${result(S.result)}${err(S.error)}
       ${S.masterError ? `<div class="error">⚠ Kärrytieto ei näy: ${esc(S.masterError)} <button class="btn-sm btn-outline" data-action="load-master">Yritä uudelleen</button></div>` : ""}</div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="tab${S.tab === k ? " on" : ""}" data-action="tab" data-tab="${k}">${l}</button>`).join("")}</div>

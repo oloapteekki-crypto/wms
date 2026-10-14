@@ -55,12 +55,12 @@ export function hasColumn(obj, ...names) {
 }
 
 // Muodostaa CSV-tekstin (oletuksena `;` ja \n) ja käynnistää latauksen selaimessa.
-export function downloadCsv(filename, rows, delimiter = ";") {
+export function downloadCsv(filename, rows, delimiter = ";", { bom = false, quoteAll = false } = {}) {
   const cell = (v) => {
     const s = String(v ?? "");
-    return s.includes(delimiter) || /["\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    return quoteAll || s.includes(delimiter) || /["\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const text = rows.map((r) => r.map(cell).join(delimiter)).join("\n");
+  const text = (bom ? "﻿" : "") + rows.map((r) => r.map(cell).join(delimiter)).join("\n");
   const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);

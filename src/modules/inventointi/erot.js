@@ -77,11 +77,11 @@ function render() {
       ${dismissedCount ? `<details style="margin-bottom:8px"><summary style="font-size:12px;color:#16a34a;cursor:pointer">✓ Siirretty Maxxiin (${dismissedCount})</summary><div style="margin-top:4px">
         ${Object.entries(counted).filter(([vnr, c]) => c.qty !== exp(vnr) && dismissed[vnr]).map(([vnr, c]) => `<div style="padding:4px 8px;font-size:11px;color:#94a3b8;display:flex;justify-content:space-between;align-items:center"><span>${esc(c.name || productsRaw[vnr]?.name || vnr)} | Maxx→${c.qty - (productsRaw[vnr]?.unshipped || 0)}</span><button style="font-size:10px;padding:2px 8px;border:1px solid #e2e8f0;border-radius:4px;background:#fff;cursor:pointer" data-action="undismiss" data-vnr="${esc(vnr)}">Palauta</button></div>`).join("")}
       </div></details>` : ""}</div>
-    <details class="card"><summary style="font-size:14px;font-weight:600;color:#7c3aed;cursor:pointer">Päivitä odotetut saldot</summary><div style="margin-top:8px">
+    <details class="card"><summary style="font-size:14px;font-weight:600;color:#288264;cursor:pointer">Päivitä odotetut saldot</summary><div style="margin-top:8px">
       <p style="font-size:12px;color:#64748b;margin-bottom:8px">Hakee tuoreen MAXX-saldon ja keräämättömät BigQuery-viennistä. Dataa haetaan vain kun painat nappia.</p>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="keep-counted" checked> Säilytä aiemmat inventointitulokset</label>
       <button class="btn" id="refresh-btn" data-action="refresh">🔄 Hae tuore data</button>
-      <details style="margin-top:8px"><summary style="font-size:12px;color:#7c3aed;cursor:pointer">Lataa tiedostoista (varakeino)</summary><div style="margin-top:8px">
+      <details style="margin-top:8px"><summary style="font-size:12px;color:#288264;cursor:pointer">Lataa tiedostoista (varakeino)</summary><div style="margin-top:8px">
         <div class="mb-8"><label class="label">Maxx saldo</label><input type="file" id="maxx-file" accept=".csv" style="font-size:13px;width:100%"></div>
         <div class="mb-8"><label class="label">Keräilemätön</label><input type="file" id="mag-file" accept=".csv" style="font-size:13px;width:100%"></div>
         <div class="mb-8"><label class="label">EAN (valinnainen)</label><input type="file" id="ean-file" accept=".csv" style="font-size:13px;width:100%"></div>
@@ -105,7 +105,7 @@ function render() {
     h += devs.map((d) => `<div class="deviation ${d.diff > 0 ? "dev-plus" : "dev-minus"}">
       <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:12px">${esc(d.name)}</div><div class="mono" style="color:#64748b">${esc(d.location)} | VNR ${esc(d.vnr)}</div><div style="font-size:11px;color:#94a3b8">${esc(d.worker)}</div></div>
       <div style="text-align:right;white-space:nowrap;margin-left:8px"><div style="font-size:11px;color:#94a3b8">Hyllyssä: ${d.counted} | Odotettu: ${d.expected}</div>
-        <div style="font-size:18px;font-weight:800;color:#6d28d9;margin:2px 0">Maxx → ${d.maxx}</div>
+        <div style="font-size:18px;font-weight:800;color:#1e5f49;margin:2px 0">Maxx → ${d.maxx}</div>
         <div style="font-size:10px;color:#94a3b8">${d.unshipped ? "Keräilemätön: " + d.unshipped : ""}</div>
         <button class="btn-ok" style="margin-top:4px;font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;font-weight:600" data-action="dismiss" data-vnr="${esc(d.vnr)}">✓ Siirretty</button></div></div>`).join("");
   } else if (totalCounted > 0) h += `<div class="card" style="text-align:center;padding:24px"><div style="font-size:36px;margin-bottom:8px">✓</div><h2 style="color:#16a34a">Ei eroja</h2></div>`;

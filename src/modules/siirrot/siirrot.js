@@ -100,7 +100,7 @@ function renderCards() {
         <div class="loc-label">${putMode ? "Uusi hyllypaikka" : "Hyllypaikka (nykyinen)"}</div>
         <div class="loc-code">${esc(loc)}</div>
       </div>
-      <div class="size-info">Koko: <strong>${esc(it.koko || "?")}</strong><span class="arrow">→</span><strong style="color:#0F6E56">${esc(it.opt || "?")}</strong></div>
+      <div class="size-info">Koko: <strong>${esc(it.koko || "?")}</strong><span class="arrow">→</span><strong style="color:#1e5f49">${esc(it.opt || "?")}</strong></div>
       ${handledNow ? "" : `<div class="btn-row">
         <button class="btn skip-btn" data-act="skip" data-key="${esc(itemKey(it))}">✕ Ohita</button>
         <button class="btn primary" data-act="done" data-key="${esc(itemKey(it))}">${putMode ? "✓ Hyllytetty" : "✓ Kerätty"}</button>

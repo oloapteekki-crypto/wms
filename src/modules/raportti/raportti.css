@@ -1,5 +1,5 @@
-/* Raportti: tietokonenäkymä, yhteinen vihreä teema (#1D9E75). Teksti aina neutraaleissa sävyissä, ei sarjan värissä. */
-body.report{max-width:1100px;padding:1.25rem;--ink:#1a1a1a;--muted:#6b6b6b;--grid:#e8e8e8;--bar:#1D9E75;--warn:#b45309;--bad:#c0392b}
+/* Raportti: tietokonenäkymä, yhteinen vihreä teema (#288264). Teksti aina neutraaleissa sävyissä, ei sarjan värissä. */
+body.report{max-width:1100px;padding:1.25rem;--ink:#1a1a1a;--muted:#6b6b6b;--grid:#e8e8e8;--bar:#288264;--warn:#b45309;--bad:#c0392b}
 .head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:.5rem}
 .head h1{margin:0}
 .sub{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}

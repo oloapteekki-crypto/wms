@@ -33,9 +33,9 @@ export function setupView(v) {
       <button class="btn" data-action="load-export" ${busy ? "disabled" : ""}>${esc(S.loading || "🔄 Hae tuore data (BigQuery-vienti)")}</button>
       <p class="hint">Hakee MAXX-saldon ja keräämättömät. Päivittää odotetut määrät, laskennat säilyvät.</p>
       <div class="sep">tai</div>
-      <button class="btn" style="background:#7c3aed" data-action="load-snapshot" ${busy ? "disabled" : ""}>📱 Käytä tallennettua dataa</button>
+      <button class="btn" style="background:#288264" data-action="load-snapshot" ${busy ? "disabled" : ""}>📱 Käytä tallennettua dataa</button>
       <p class="hint">Jos data on jo haettu (esim. tietokoneella)</p>
-      <details style="margin-top:12px"><summary style="font-size:13px;color:#7c3aed;cursor:pointer">📁 Lataa tiedostoista (varakeino)</summary>
+      <details style="margin-top:12px"><summary style="font-size:13px;color:#288264;cursor:pointer">📁 Lataa tiedostoista (varakeino)</summary>
         <div style="margin-top:8px">
           <div class="mb-8"><label class="label">Maxx saldo (InventointialustaXRP)</label><input type="file" id="maxx-file" accept=".csv" style="font-size:14px;width:100%"></div>
           <div class="mb-8"><label class="label">Keräilemätön (Magento inventory)</label><input type="file" id="mag-file" accept=".csv" style="font-size:14px;width:100%"></div>
@@ -60,13 +60,13 @@ export function shelfSelectView(v) {
         <button class="btn-sm btn-outline flex-1" data-action="dl-all">📥 Kaikki</button>
         <button class="btn-sm btn-outline flex-1" data-action="dl-today" data-today="${today}">📥 Tänään</button>
       </div></div>
-    <details class="card"><summary style="font-size:14px;font-weight:600;color:#7c3aed;cursor:pointer">🔍 Tarkistettavat (CSV-lista)</summary>
+    <details class="card"><summary style="font-size:14px;font-weight:600;color:#288264;cursor:pointer">🔍 Tarkistettavat (CSV-lista)</summary>
       <div style="margin-top:8px"><p style="font-size:12px;color:#64748b;margin-bottom:8px">Lataa CSV jossa VNR per rivi. Tuotteet näkyvät omana "hyllynä".</p>
         <input type="file" id="checklist-file" accept=".csv,.txt" style="font-size:13px;width:100%;margin-bottom:8px">
         <button class="btn-sm btn-outline" style="width:100%" data-action="load-checklist">Lataa tarkistuslista</button></div></details>
-    ${S.checkListItems ? `<div class="shelf-btn" style="margin-bottom:12px;border-color:#7c3aed;background:#ede9fe" data-action="select-shelf" data-key="__CHECK__">
+    ${S.checkListItems ? `<div class="shelf-btn" style="margin-bottom:12px;border-color:#288264;background:#f4f9f7" data-action="select-shelf" data-key="__CHECK__">
       <div style="font-size:16px;font-weight:700">🔍 Tarkistettavat</div>
-      <div style="font-size:11px;color:#7c3aed">${S.checkListItems.filter((i) => S.allCounted[i.vnr] !== undefined).length}/${S.checkListItems.length}</div></div>` : ""}
+      <div style="font-size:11px;color:#288264">${S.checkListItems.filter((i) => S.allCounted[i.vnr] !== undefined).length}/${S.checkListItems.length}</div></div>` : ""}
     <div class="shelf-grid">
       ${S.shelves.map((sh) => {
         const counted = S.shelfStats[sh.key]?.counted || 0;
@@ -117,7 +117,7 @@ export function countingView(v) {
       ${isDone ? `<div style="text-align:center;margin-bottom:12px"><div style="font-size:12px;color:#64748b">Inventoitu</div>
         <div class="qty-big ${curCounted === cur.expected ? "qty-match" : "qty-diff"}">${curCounted} ${curCounted === cur.expected ? "✓" : curCounted > cur.expected ? "▲" + (curCounted - cur.expected) : "▼" + (cur.expected - curCounted)}</div></div>` : ""}
       ${!S.camConfirmed && !isDone ? `
-        <div style="text-align:center;font-size:13px;color:#7c3aed;font-weight:600;margin-bottom:8px">${S.device === "scanner" ? "🔫" : "📷"} Skannaa tuotteen viivakoodi</div>
+        <div style="text-align:center;font-size:13px;color:#288264;font-weight:600;margin-bottom:8px">${S.device === "scanner" ? "🔫" : "📷"} Skannaa tuotteen viivakoodi</div>
         <button class="btn-sm btn-outline" style="width:100%;margin-bottom:8px" data-action="skip-scan">Ohita skannaus →</button>
       ` : `
         <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:16px 0">
@@ -127,9 +127,9 @@ export function countingView(v) {
     </div>` : `<div class="card" style="text-align:center;padding:24px">Hylly tyhjä</div>`;
 
   return `
-    <div class="card"><div class="flex justify-between items-center"><h2 style="margin:0;color:#6d28d9">📍 ${esc(title)}</h2>
+    <div class="card"><div class="flex justify-between items-center"><h2 style="margin:0;color:#1e5f49">📍 ${esc(title)}</h2>
         <span style="font-size:12px;color:#94a3b8">${countedHere}/${totalHere} (${pct}%)</span></div>
-      ${currentWorker ? `<div style="font-size:11px;color:#7c3aed;margin-top:2px">👤 ${esc(currentWorker)}</div>` : ""}
+      ${currentWorker ? `<div style="font-size:11px;color:#288264;margin-top:2px">👤 ${esc(currentWorker)}</div>` : ""}
       <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${pct}%"></div></div></div>
     ${currentCard}
     ${result(S.result)}${err(S.error)}
@@ -143,7 +143,7 @@ export function countingView(v) {
         ${items.map((it, idx) => {
           const c = S.counted[it.vnr];
           const isCur = idx === S.currentIdx;
-          const style = isCur ? "background:#ede9fe;border:1px solid #c4b5fd" : c !== undefined ? "background:#f0fdf4;border:1px solid #dcfce7;opacity:.6" : "background:#f8fafc;border:1px solid #e2e8f0";
+          const style = isCur ? "background:#f4f9f7;border:1px solid #c4b5fd" : c !== undefined ? "background:#f0fdf4;border:1px solid #dcfce7;opacity:.6" : "background:#f8fafc;border:1px solid #e2e8f0";
           const col = c !== undefined && c !== it.expected ? "color:#dc2626" : c !== undefined ? "color:#16a34a" : "color:#94a3b8";
           return `<div style="padding:6px 8px;border-radius:6px;margin-bottom:3px;font-size:12px;cursor:pointer;${style}" data-action="goto" data-idx="${idx}">
             <div class="flex justify-between"><span style="font-weight:600">${esc(it.name)}</span><span style="white-space:nowrap;margin-left:8px;font-weight:700;${col}">${c !== undefined ? c + "/" + it.expected : it.expected}</span></div>

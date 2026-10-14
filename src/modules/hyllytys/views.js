@@ -170,7 +170,7 @@ export function scanView(v) {
       ${newQ ? `<div style="padding:8px 12px;border-radius:8px;background:#fffbeb;font-size:13px;margin-bottom:6px;border:1px solid #fde68a">📦 UUSI-hyllyyn: ${newQ} kpl <span style="font-size:11px;color:#92400e">(ei kärryissä — varastopaikkaa ei löydy)</span></div>` : ""}
       ${palletQ ? `<div style="padding:8px 12px;border-radius:8px;background:#f8fafc;font-size:13px;margin-bottom:6px;border:1px solid #e2e8f0">🏗 Lavapaikat (L4/L5): ${palletQ} kpl</div>` : ""}</div>
     ${scannedList}
-    <button class="btn" style="background:#16a34a" data-action="to-cart-select">Valitse kärry → Hyllytys</button>
+    <button class="btn" style="background:#288264" data-action="to-cart-select">Valitse kärry → Hyllytys</button>
     <button class="btn-sm btn-danger" style="width:100%;margin-top:12px" data-action="reset-day">🗑 Nollaa päivän data</button>`;
 }
 
@@ -254,7 +254,7 @@ export function shelveView(v) {
       <button class="btn-sm flex-1" style="background:${undoCount ? "#fef3c7" : "#f1f5f9"};color:${undoCount ? "#92400e" : "#cbd5e1"};border:none" ${undoCount ? "" : "disabled"} data-action="undo">↩ Peru</button>
       <button class="btn-sm flex-1" style="background:${paused ? "#f0fdf4" : "#fef2f2"};color:${paused ? "#16a34a" : "#64748b"};border:none" data-action="pause">${paused ? "▶ Jatka" : "⏸ Tauko"}</button>
       <button class="btn-sm btn-outline flex-1" ${S.currentIdx >= S.routeItems.length - 1 ? "disabled" : ""} data-action="nav" data-delta="1">→</button></div>
-    <button class="btn" style="background:#16a34a;margin-bottom:12px" data-action="finish">Lopeta → Raportti</button>`;
+    <button class="btn" style="background:#288264;margin-bottom:12px" data-action="finish">Lopeta → Raportti</button>`;
 }
 
 /* ───────── Raportti ───────── */

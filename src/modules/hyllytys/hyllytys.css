@@ -1,12 +1,12 @@
 /* Hyllytys – portattu hyllytysappiuusi/index.html:n tyyleistä */
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f8fafc;color:#1e293b;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#faf8f6;color:#333;-webkit-tap-highlight-color:transparent}
 .app{max-width:480px;margin:0 auto;padding:16px 12px;min-height:100dvh}
 .card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px;margin-bottom:12px}
 h1{font-size:20px;font-weight:700;margin-bottom:4px}
 h2{font-size:16px;font-weight:700;margin-bottom:8px}
 .sub{font-size:12px;color:#64748b;margin-bottom:16px}
-.btn{width:100%;padding:14px 0;border-radius:10px;border:none;background:#1e293b;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.btn{width:100%;padding:14px 0;border-radius:14px;border:none;background:#288264;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
 .btn:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
 .btn:active:not(:disabled){opacity:.8}
 .btn-sm{padding:10px 20px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer}
@@ -29,7 +29,7 @@ h2{font-size:16px;font-weight:700;margin-bottom:8px}
 .badge-R{background:#fee2e2;color:#b91c1c;border:1.5px solid #fca5a5}
 .badge-J{background:#e0f2fe;color:#0369a1;border:1.5px solid #7dd3fc}
 .progress-bar{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden}
-.progress-fill{height:100%;border-radius:4px;background:#1e293b;transition:width .3s}
+.progress-fill{height:100%;border-radius:4px;background:#288264;transition:width .3s}
 .qty-display{display:flex;align-items:center;justify-content:center;gap:4px;padding:14px;border-radius:10px;font-family:monospace}
 .qty-adj{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
 .qty-btn{width:44px;height:44px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}

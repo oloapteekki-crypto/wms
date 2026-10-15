@@ -339,6 +339,7 @@ function devsText() {
 const actions = {
   login: async () => { setState({ error: await doLogin(store, $("login-email"), $("login-pass")) }); },
   "load-file": loadFile,
+  "refresh-recent": async () => { await loadRecent(); setState({ error: null }); },
   "open-order": (d) => { setState({ tab: "lines", filter: "open", selectedKey: null, error: null, result: null }); openOrder(d.id); },
   "to-start": async () => { unsub?.(); unsub = null; stopVoice(); await loadRecent(); setState({ phase: "start", order: null, recs: {}, error: null, result: null, master: S.master }); },
   tab: (d) => { setState({ tab: d.tab, error: null, result: null }); if (d.tab === "carts" && !S.master && !S.masterLoading) loadMaster(); },

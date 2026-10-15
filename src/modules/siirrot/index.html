@@ -8,7 +8,9 @@
 </head>
 <body>
 <a class="back" href="../../../index.html">← WMS</a>
-<h1>🔁 Siirrot</h1>
+<h1>Siirrot</h1>
+
+<div id="login-view" style="display:none"></div>
 
 <div id="loading-view" class="loading">
   <div class="icon">⏳</div>
@@ -19,23 +21,37 @@
 
 <div id="main-view" style="display:none">
   <div class="controls">
+    <select id="worker-sel" aria-label="Käyttäjä"></select>
+    <select id="count-sel" aria-label="Erän koko">
+      <option value="10">Erä 10</option>
+      <option value="20" selected>Erä 20</option>
+      <option value="30">Erä 30</option>
+      <option value="50">Erä 50</option>
+    </select>
+  </div>
+  <div class="status-row" id="team-strip" style="margin-bottom:.75rem"></div>
+  <div class="controls">
     <div class="phase-toggle">
       <button class="phase-btn active" id="btn-pick">🧺 Keräily</button>
       <button class="phase-btn" id="btn-put">📥 Hyllytys</button>
     </div>
-    <select id="count-sel">
-      <option value="10">Top 10</option>
-      <option value="20" selected>Top 20</option>
-      <option value="30">Top 30</option>
-      <option value="50">Top 50</option>
-    </select>
   </div>
+
+  <div id="take-view" style="display:none">
+    <div class="summary">
+      <h2>Ota siirtoja</h2>
+      <p>Saat oman erän vapaista siirroista. Muut näkevät ne varattuina, eikä kukaan muu saa samoja.</p>
+      <button class="btn primary" id="take-btn">Ota erä</button>
+    </div>
+  </div>
+
   <div class="progress-wrap"><div class="progress-fill" id="prog"></div></div>
   <div class="status-row">
     <span id="phase-label"></span>
     <span id="done-count">0 / 0</span>
   </div>
   <div id="cards-container"></div>
+  <button class="btn" id="release-btn" style="display:none;margin-top:.75rem">Vapauta keräämättömät muille</button>
   <div id="summary-view" style="display:none">
     <div class="summary">
       <h2 id="sum-title"></h2>

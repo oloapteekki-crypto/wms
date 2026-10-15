@@ -28,10 +28,11 @@ export function startView(v) {
         <input type="file" id="order-file" accept=".xlsx" style="font-size:14px;width:100%"></div>
       <button class="btn" data-action="load-file" ${S.loading ? "disabled" : ""}>${esc(S.loading || "Avaa tilaus")}</button>
       ${err(S.error)}${result(S.result)}</div>
-    ${recent.length ? `<div class="card"><h2>Aiemmat tilaukset</h2>${recent.map((o) => `
+    ${recent.length ? `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div>${recent.map((o) => `
       <div class="order-row" data-action="open-order" data-id="${esc(o.id)}">
-        <div><b>${esc(o.supplier)}</b> <span class="muted">${esc(o.date)}</span></div>
-        <div class="muted">${o.done}/${o.total} riviä${o.xmlAt ? " • XML tehty" : ""}</div></div>`).join("")}</div>` : ""}`;
+        <div><b>${esc(o.supplier)}</b> <span class="muted">${esc(o.date)}</span>${o.done === 0 ? ` <span class="chip st-date">Uusi</span>` : ""}</div>
+        <div class="muted">${o.done}/${o.total} riviä${o.xmlAt ? " • XML tehty" : ""}</div></div>`).join("")}</div>`
+      : `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div><div class="muted small">Ei tallennettuja tilauksia. Lähetä tilaus Sheetsistä (WMS-valikko) tai lataa .xlsx yllä.</div></div>`}`;
 }
 
 /* ───────── Tilaus ───────── */

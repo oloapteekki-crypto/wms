@@ -31,6 +31,22 @@ export function parseFinnishInt(text) {
   return parseCompound(joined);
 }
 
+/* ───────── Järjestysluvut päivälle ("viides huhtikuuta") ───────── */
+const ORD_UNITS = { ensimmäinen: 1, toinen: 2, kolmas: 3, neljäs: 4, viides: 5, kuudes: 6, seitsemäs: 7, kahdeksas: 8, yhdeksäs: 9 };
+const ORD_TEENS = { kymmenes: 10, yhdestoista: 11, kahdestoista: 12, kolmastoista: 13, neljästoista: 14, viidestoista: 15, kuudestoista: 16, seitsemästoista: 17, kahdeksastoista: 18, yhdeksästoista: 19 };
+// 1–31: "viides", "kolmastoista", "kahdeskymmenesviides", "kolmaskymmenesensimmäinen" → luku tai null
+export function parseOrdinalDay(w) {
+  const s = String(w ?? "").trim().toLowerCase();
+  if (s in ORD_UNITS) return ORD_UNITS[s];
+  if (s in ORD_TEENS) return ORD_TEENS[s];
+  if (s === "kahdeskymmenes") return 20;
+  if (s === "kolmaskymmenes") return 30;
+  let m;
+  if ((m = s.match(/^kahdeskymmenes(.+)$/)) && m[1] in ORD_UNITS) return 20 + ORD_UNITS[m[1]];
+  if ((m = s.match(/^kolmaskymmenes(.+)$/)) && m[1] === "ensimmäinen") return 31;
+  return null;
+}
+
 /* ───────── Päiväys ───────── */
 const MONTH_PREFIX = ["tammi", "helmi", "maalis", "huhti", "touko", "kesä", "heinä", "elo", "syys", "loka", "marras", "joulu"];
 const monthFromWord = (w) => {
@@ -91,9 +107,16 @@ export function parseSpokenDate(text) {
     const mo = monthFromWord(words[monthIdx]);
     const before = words.slice(0, monthIdx).join("");
     const after = words.slice(monthIdx + 1).join("");
-    const y = parseFinnishInt(after);
-    const d = before ? parseFinnishInt(before) : null;
-    if (y === null || (before && d === null)) return null;
+    const d = before ? (parseOrdinalDay(before) ?? parseFinnishInt(before)) : null;
+    if (before && d === null) return null;
+    let y = after ? parseFinnishInt(after) : null;
+    if (after && y === null) return null;
+    if (y === null) { // vuotta ei sanottu: lähin tuleva ajankohta (vanhenemispäivä on aina tulevaisuudessa)
+      const now = new Date();
+      y = now.getFullYear();
+      const cand = build(y, mo, d);
+      if (cand && cand.ymd < `${y}${pad(now.getMonth() + 1)}${pad(now.getDate())}`) y += 1;
+    }
     return build(y, mo, d);
   }
   const nums = words.map((w) => parseFinnishInt(w));

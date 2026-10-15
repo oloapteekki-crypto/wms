@@ -30,7 +30,7 @@ let renderTimer = null;
 
 let S = {
   phase: "start", order: null, recs: {}, tab: "lines", filter: "open", selectedKey: null, error: null, result: null, loading: null,
-  master: null, masterError: null, masterLoading: false, voiceCandidate: null, voiceText: null, draft: { key: null, qty: null, end: null }, shelvingSentAt: null, xmlAt: null,
+  master: null, masterError: null, masterLoading: false, voiceCandidate: null, voiceText: null, draft: { key: null, qty: null, end: null }, drafts: {}, shelvingSentAt: null, xmlAt: null,
 };
 
 /* ───────── Render (säilyttää kentän fokuksen) ───────── */
@@ -45,6 +45,7 @@ function viewModel() {
 // Skannauksen jälkeen avattu rivi pidetään näkyvissä, vaikka näkymä piirtyisi uudelleen (Firebase-päivitykset, hyllypaikkojen lataus).
 // Ilman tätä focus() palautti skannauskentän ja sivu hyppäsi ylös, jolloin työntekijä joutui skrollaamaan riville itse.
 let scrollTarget = null; // {key, until}
+let focusScanNext = false;
 function applyScroll() {
   if (!scrollTarget || Date.now() > scrollTarget.until) { scrollTarget = null; return false; }
   const el = $("line-" + scrollTarget.key);
@@ -63,6 +64,12 @@ function render() {
     const el = $(keep.id);
     if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(keep.start, keep.end); } catch { /* ei tekstikenttä */ } }
   }
+  // Rivin kirjaamisen jälkeen kohdistus takaisin skannauskenttään: seuraava tuote voidaan skannata heti
+  if (S.phase === "order" && S.order && !document.querySelector(".login") && (focusScanNext || (!S.selectedKey && (!document.activeElement || document.activeElement === document.body)))) {
+    $("scan-field")?.focus({ preventScroll: true });
+    focusScanNext = false;
+  }
+  saveDrafts();
   if (!applyScroll()) window.scrollTo(0, y);
 }
 
@@ -93,8 +100,11 @@ function openOrder(id) {
     const lines = Object.entries(val.lines || {}).map(([k, l]) => ({ ...l })).sort((a, b) => (a.n || 0) - (b.n || 0));
     const recs = {};
     for (const [k, r] of Object.entries(val.rec || {})) { const rec = buildRec(r); if (rec) recs[k] = rec; }
+    const firstLoad = !S.order || S.order.id !== id;
+    if (firstLoad) { S.drafts = {}; S.draft = { key: null, qty: null, end: null }; }
     S.order = { id, supplier: val.meta.supplier, orderDate: val.meta.orderDate, fileName: val.meta.fileName || "", updatedAt: val.meta.updatedAt || null, lines };
     S.recs = recs;
+    if (firstLoad) restoreDrafts(id);
     S.shelvingSentAt = val.shelving?.t || null;
     S.xmlAt = val.xmlAt || null;
     if (S.phase !== "order") S.phase = "order";
@@ -166,7 +176,29 @@ function clearLine(key) {
   store.remove(recPath(key));
 }
 
-const resetDraft = (key) => { S.draft = { key, qty: null, end: S.recs[key]?.batches?.at(-1)?.end ?? null }; };
+// Keskeneräiset (kirjaamattomat) laatikon tiedot muistetaan riveittäin: toiseen riviin siirtyminen tai sivun uudelleenlataus ei hävitä syötettyä määrää.
+const useDraft = (key) => {
+  const d = (S.drafts[key] ||= { key, qty: null, end: S.recs[key]?.batches?.at(-1)?.end ?? null });
+  S.draft = d;
+  return d;
+};
+const resetDraft = (key) => { delete S.drafts[key]; useDraft(key); };
+
+const DRAFT_KEY = "wms_vastaanotto_draft";
+function saveDrafts() {
+  if (!S.order) return; // aloitusnäkymässä ei kirjoiteta yli
+  try {
+    const keep = {};
+    for (const [k, d] of Object.entries(S.drafts)) if (d.qty !== null && d.qty !== undefined) keep[k] = { qty: d.qty, end: d.end };
+    saveJson(DRAFT_KEY, S.order && Object.keys(keep).length ? { order: S.order.id, drafts: keep, selectedKey: S.selectedKey, t: Date.now() } : null);
+  } catch { /* tallennus on lisä */ }
+}
+function restoreDrafts(orderId) {
+  const d = loadJson(DRAFT_KEY, null);
+  if (!d || d.order !== orderId || Date.now() - (d.t || 0) > 12 * 3600 * 1000) return;
+  for (const [k, v] of Object.entries(d.drafts || {})) if (lineByKey(k)) S.drafts[k] = { key: k, qty: v.qty, end: v.end ?? null };
+  if (d.selectedKey && S.drafts[d.selectedKey]) { S.selectedKey = d.selectedKey; S.draft = S.drafts[d.selectedKey]; }
+}
 function lineByKey(key) { return S.order.lines.find((l) => l.key === key); }
 
 // Laatikko kirjattu: sulje rivi ja muistuta kärrystä. Seuraavaan riviin EI siirrytä itsestään:
@@ -179,6 +211,7 @@ function finishLine(key, what = "") {
   const p = rec.qty > 0 ? placement(l, S.master) : null;
   stopVoice();
   scrollTarget = null;
+  focusScanNext = true;
   const sum = st === "none" ? " — ei tullut" : ` (yhteensä ${rec.qty}/${l.ordered})`;
   setState({
     selectedKey: null, voiceCandidate: null, error: null,
@@ -199,7 +232,7 @@ function commitDraft(key) {
 
 function selectLine(key) {
   stopVoice();
-  resetDraft(key);
+  useDraft(key);
   scrollTarget = { key, until: Date.now() + 2500 };
   setState({ selectedKey: key, voiceCandidate: null });
 }
@@ -426,6 +459,7 @@ app.addEventListener("input", (e) => {
   if (e.target.id !== "qty-input") return;
   const n = parseInt(e.target.value, 10);
   S.draft.qty = Number.isNaN(n) ? null : n;
+  saveDrafts();
 });
 
 app.addEventListener("keydown", (e) => {

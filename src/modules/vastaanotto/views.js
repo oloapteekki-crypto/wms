@@ -111,7 +111,7 @@ export function orderView(v) {
   return `
     <button class="back linkbtn" data-action="to-start">← Tilaukset</button>
     <div class="card"><div class="flex justify-between items-center"><div><h1 style="margin:0">${esc(order.supplier.name)}</h1>
-      <div class="muted small">Tilaus ${esc(formatYmd(order.orderDate))} • ${sum.total} riviä • ${sum.orderedUnits} kpl tilattu</div></div>
+      <div class="muted small">Tilaus ${esc(formatYmd(order.orderDate))} • ${sum.total} riviä • ${sum.orderedUnits} kpl tilattu${order.updatedAt ? ` • tilausta päivitetty Sheetsistä ${new Date(order.updatedAt).toLocaleString("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}</div></div>
       <div class="big-pct">${sum.done}/${sum.total}</div></div>
       <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${pct}%"></div></div>
       <div class="chips">

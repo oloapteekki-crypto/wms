@@ -79,7 +79,7 @@ function openOrder(id) {
     const lines = Object.entries(val.lines || {}).map(([k, l]) => ({ ...l })).sort((a, b) => (a.n || 0) - (b.n || 0));
     const recs = {};
     for (const [k, r] of Object.entries(val.rec || {})) { const rec = buildRec(r); if (rec) recs[k] = rec; }
-    S.order = { id, supplier: val.meta.supplier, orderDate: val.meta.orderDate, fileName: val.meta.fileName || "", lines };
+    S.order = { id, supplier: val.meta.supplier, orderDate: val.meta.orderDate, fileName: val.meta.fileName || "", updatedAt: val.meta.updatedAt || null, lines };
     S.recs = recs;
     S.shelvingSentAt = val.shelving?.t || null;
     S.xmlAt = val.xmlAt || null;

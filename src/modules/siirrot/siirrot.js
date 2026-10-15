@@ -15,7 +15,7 @@ const CSV_URL = "https://storage.googleapis.com/olo-export-data/export_siirtoehd
 const KEY_PHASE = "wms_siirrot_phase";
 const KEY_BATCH = "wms_siirrot_batch";
 const CLAIM_TTL = 90 * 60 * 1000; // vapauttamaton varaus vanhenee 90 min kuluttua
-// "tyhjä" = sopivaa vapaata paikkaa ei löytynyt, "dimensiot" = mitat puuttuvat, "n/a" = ei tietoa: ei kohdepaikkaa, joten ei siirrettävä
+// BigQueryn proseduuri optimize_warehouse: "TYHJÄ" = ei saldoa eikä tavoitetasoa, "DIMENSIOT" = mitat puuttuvat, "N/A" = ei valikoimassa; ei kohdepaikkaa, joten ei siirrettävä
 const PRODUCTS_CSV = "https://storage.googleapis.com/olo-export-data/hyllytys-app-export000000000000.csv";
 const NO_TARGET = ["ok", "uusi", "", "vanha", "not available", "tyhjä", "dimensiot", "n/a"];
 

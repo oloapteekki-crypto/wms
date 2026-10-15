@@ -24,6 +24,7 @@ let me = loadJson("wms_worker", "");
 let batch = loadJson(KEY_BATCH, ""); // oman erän tunniste
 let phase = loadJson(KEY_PHASE, "pick") === "put" ? "put" : "pick";
 let allItems = [];
+let proposalsAt = ""; // CSV:n exported_at (jos viennissä on)
 let view = "work"; // work | free
 let locations = null; // [{code, size, rank}] kaikki hyllypaikat (Firebase files/locations)
 let occupied = null; // Set: tuotteille annetut paikat (tuoterekisteri)
@@ -130,7 +131,8 @@ function teamStrip() {
   }
   const free = allItems.filter(isFree).length;
   const others = Object.entries(byPerson).filter(([n]) => n !== me).map(([n, c]) => `${esc(n)} ${c}`).join(" · ");
-  return `Vapaana <b>${free}</b> · valmiina <b>${placed}</b>${skipped ? ` · ohitettu ${skipped}` : ""}${others ? ` · muilla: ${others}` : ""}`;
+  const stamp = proposalsAt ? `Ehdotukset ${esc(String(proposalsAt).replace("T", " ").slice(0, 16))} · ` : "";
+  return `${stamp}Vapaana <b>${free}</b> · valmiina <b>${placed}</b>${skipped ? ` · ohitettu ${skipped}` : ""}${others ? ` · muilla: ${others}` : ""}`;
 }
 
 function renderCards() {
@@ -317,15 +319,35 @@ function renderWorkerSelect() {
   sel.innerHTML = `<option value="">— Käyttäjä —</option>` + WORKERS.map((w) => `<option value="${esc(w)}"${w === me ? " selected" : ""}>${esc(w)}</option>`).join("");
 }
 
+// Hakee ehdotukset. Päivityksessä omat keskeneräiset siirrot säilyvät listalla, vaikka ehdotus olisi muuttunut.
+async function loadProposals() {
+  const text = await fetchCsvText(CSV_URL);
+  const items = parseSiirtoCsv(text);
+  if (!items.length) throw new Error("CSV ei tuottanut siirrettäviä tuotteita");
+  const at = parseCsvObjects(text)[0]?.exported_at;
+  proposalsAt = at || "";
+  if (allItems.length) {
+    const have = new Set(items.map(itemKey));
+    for (const it of allItems) if (!have.has(itemKey(it)) && isMine(it) && stateOf(it) !== "placed") items.push(it);
+  }
+  allItems = items;
+}
+
+async function refreshProposals() {
+  const btn = $("refresh-btn");
+  btn.disabled = true; btn.textContent = "Haetaan…";
+  try { await loadProposals(); refresh(); if (view === "free" && locations && occupied) renderFree(); }
+  catch (e) { alert("Ehdotusten haku epäonnistui: " + e.message); }
+  btn.disabled = false; btn.textContent = "↻ Päivitä ehdotukset";
+}
+
 async function fetchData() {
   show($("loading-view"), true);
   show($("main-view"), false);
   show($("load-error"), false);
   show($("retry-btn"), false);
   try {
-    const items = parseSiirtoCsv(await fetchCsvText(CSV_URL));
-    if (!items.length) throw new Error("CSV ei tuottanut siirrettäviä tuotteita");
-    allItems = items;
+    await loadProposals();
     show($("loading-view"), false);
     show($("main-view"), true);
     renderWorkerSelect();
@@ -370,6 +392,7 @@ $("free-view").addEventListener("change", async (e) => {
   } catch (err) { freeError = "Tiedoston luku epäonnistui: " + err.message; renderFree(); }
 });
 $("take-btn").addEventListener("click", takeBatch);
+$("refresh-btn").addEventListener("click", refreshProposals);
 $("release-btn").addEventListener("click", releaseUnpicked);
 $("reset-btn").addEventListener("click", resetSession);
 $("retry-btn").addEventListener("click", fetchData);

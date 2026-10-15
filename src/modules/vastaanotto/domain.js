@@ -209,7 +209,7 @@ export function splitToCarts(lines, recs, master) {
     const qty = recs[l.key]?.qty || 0;
     if (qty <= 0) continue;
     const e = enrichItem({ vnr: l.sku, altVnr: "", name: l.name, qty }, master || {});
-    items.push({ ...e, ean: e.ean || l.ean });
+    items.push({ ...e, ean: e.ean || l.ean, exp: dateGroups(recs[l.key]) });
   }
   const groups = CARTS.map((c) => ({ ...c, kind: "cart", items: sortRoute(items.filter((i) => i.cartId === c.id)) }));
   groups.push({ id: "RX", name: "Reseptilääkkeet", icon: "💊", color: "#b91c1c", kind: "rx", items: items.filter((i) => i.parsedLoc?.type === "rx") });

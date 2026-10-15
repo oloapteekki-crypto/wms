@@ -351,11 +351,11 @@ async function toShelving() {
   const sscc = `TT-${S.order.id}`;
   const box = {
     sscc, by: "vastaanotto", t: Date.now(),
-    items: items.map((i) => ({ vnr: i.vnr, altVnr: "", name: i.name, ean: i.ean || "", qty: i.qty, location: i.location, cartId: i.cartId, physAisle: i.physAisle })),
+    items: items.map((i) => ({ vnr: i.vnr, altVnr: "", name: i.name, ean: i.ean || "", qty: i.qty, location: i.location, cartId: i.cartId, physAisle: i.physAisle, ...(i.exp?.length ? { exp: i.exp } : {}) })),
   };
   await store.set(`sessions/${todayKey()}/scannedBoxes/${boxKey(sscc)}`, box);
   await store.set(`vastaanotto/${S.order.id}/shelving`, { t: Date.now() });
-  setState({ error: null, result: { type: "ok", text: `✓ ${items.length} tuotetta viety hyllytykseen` } });
+  setState({ error: null, result: { type: "ok", text: `✓ ${items.length} tuotetta viety hyllytykseen. Avaa Hyllytys → Lataa tiedot ja paina kärryn kohdalla "Kärry valmis → Hyllytykseen".` } });
 }
 
 /* ───────── XML ja poikkeamat ───────── */

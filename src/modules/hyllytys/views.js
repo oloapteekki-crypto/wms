@@ -211,6 +211,19 @@ export function cartSelectView(v) {
 }
 
 /* ───────── Hyllytys ───────── */
+// Sama tuote usealla eri päiväyksellä (Vastaanotosta): lyhyin kesto eteen (FEFO), pidempi taakse.
+function expiryNotice(item) {
+  const dated = (item.exp || []).filter((g) => g.end);
+  if (dated.length < 2) return "";
+  const fmt = (ymd) => `${Number(ymd.slice(6))}.${Number(ymd.slice(4, 6))}.${ymd.slice(0, 4)}`;
+  const first = dated[0];
+  const rest = dated.slice(1).map((g) => `${g.qty} kpl, ${fmt(g.end)}`).join("; ");
+  const undated = (item.exp || []).filter((g) => !g.end).reduce((s, g) => s + g.qty, 0);
+  return `<div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;color:#92400e">
+    <b>⚠ Useita eriä samaa tuotetta.</b> Laita <b>lyhyimmällä kestolla</b> oleva erä <b>eteen</b>: <b>${first.qty} kpl, ${fmt(first.end)}</b>.
+    Pidempi kesto taakse: ${rest}.${undated ? ` Ilman päiväystä: ${undated} kpl.` : ""}</div>`;
+}
+
 export function shelveView(v) {
   const { S, currentWorker, elapsedSec, undoCount } = v;
   const { shelved: ts, expected: tq } = totals(S.routeItems, S.shelved);
@@ -236,6 +249,7 @@ export function shelveView(v) {
       ${cur.parsedLoc ? `<div class="flex items-center gap-8 mb-6"><span class="${badgeCls(cur.parsedLoc.aisle)}">${esc(cur.parsedLoc.aisle)}</span><span class="location-big">${esc(cur.location)}</span></div>` : ""}
       <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(cur.name)}</div>
       <div class="mono" style="color:#64748b;margin-bottom:10px">VNR ${vnr}${eanText(cur)}</div>
+      ${expiryNotice(cur)}
       <div class="qty-display" style="background:${done ? "#f0fdf4" : "#f8fafc"};border:2px solid ${done ? "#86efac" : "#e2e8f0"}">
         <span style="font-size:36px;font-weight:800;color:${done ? "#16a34a" : "#1e293b"}">${cc}</span><span style="font-size:22px;color:#94a3b8"> / </span>
         <span style="font-size:36px;font-weight:800;color:#64748b">${cur.qty}</span>${done ? `<span style="font-size:24px;margin-left:8px">✓</span>` : ""}</div>

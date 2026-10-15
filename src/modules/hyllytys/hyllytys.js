@@ -270,10 +270,10 @@ async function loadData() {
   try {
     const master = await loadMaster();
     setState({ loadProgress: "Haetaan XML-tiedostoja..." });
+    // Tukku-XML:t ovat valinnaisia: pelkät Vastaanotosta (toimittajatilaukset) viedyt laatikot riittävät hyllytykseen.
     const xml = await store.get("files/xml");
-    if (!xml) throw new Error("XML-tiedostoja ei löydy — lataa ne ensin tietokoneella");
-    const parsed = Object.values(xml).map(parseXml);
-    const { boxes, altKeys } = mergeParsed(parsed);
+    const parsed = xml ? Object.values(xml).map(parseXml) : [];
+    const { boxes, altKeys } = parsed.length ? mergeParsed(parsed) : { boxes: {}, altKeys: {} };
     subscribeSession();
     setState({ xmlBoxes: boxes, boxAltKeys: altKeys, master, phase: "scan", loadProgress: null });
   } catch (e) { setState({ error: e.message, loadProgress: null }); }

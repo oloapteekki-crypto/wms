@@ -169,6 +169,13 @@ export function lookupMaster(master, vnr, alt) {
   return master[vnr] || master[stripZeros(vnr)] || (alt ? master[alt] || master[stripZeros(alt)] : null) || {};
 }
 
+// Eräkohtaiset parasta ennen -päiväykset (Vastaanotosta): [{end:"YYYYMMDD", qty}] päiväysjärjestyksessä, päiväyksettömät viimeisenä.
+export function mergeExp(a, b) {
+  const g = {};
+  for (const x of [...(a || []), ...(b || [])]) { const k = x.end || ""; g[k] = (g[k] || 0) + (Number(x.qty) || 0); }
+  return Object.entries(g).map(([end, qty]) => ({ end, qty })).sort((p, q) => (p.end === "") - (q.end === "") || p.end.localeCompare(q.end));
+}
+
 export function enrichItem(item, master) {
   const vnr = String(item.vnr || "");
   const altVnr = String(item.altVnr || "");
@@ -184,6 +191,7 @@ export function enrichItem(item, master) {
     location: parsedLoc ? locStr : null,
     parsedLoc, physAisle,
     cartId: physAisle ? cartOfAisle(physAisle) : null,
+    exp: item.exp ? mergeExp(Object.values(item.exp), []) : null,
   };
 }
 
@@ -229,7 +237,7 @@ export function batchItems(scannedBoxes, batch, cartId, master) {
       const e = enrichItem(item, master);
       if (e.cartId !== cartId) continue;
       const ex = all.find((i) => i.vnr === e.vnr);
-      if (ex) ex.qty += e.qty;
+      if (ex) { ex.qty += e.qty; if (e.exp || ex.exp) ex.exp = mergeExp(ex.exp, e.exp); }
       else all.push(e);
     }
   }
@@ -248,7 +256,7 @@ export function allScannedEnriched(scannedBoxes, master) {
     for (const item of b.items || []) {
       const e = enrichItem(item, master);
       const ex = all.find((i) => i.vnr === e.vnr);
-      if (ex) ex.qty += e.qty;
+      if (ex) { ex.qty += e.qty; if (e.exp || ex.exp) ex.exp = mergeExp(ex.exp, e.exp); }
       else all.push(e);
     }
   }

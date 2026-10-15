@@ -51,10 +51,22 @@ function build(y, m, d) {
   return { ymd: `${y}${pad(m)}${pad(day)}`, monthOnly, label: `${day}.${m}.${y}${monthOnly ? " (kk:n loppu)" : ""}` };
 }
 
+// Puhutut erottimet ("kuusi kautta kaksikymmentäseitsemän" = 6/27) ja yksitellen sanotut numerot
+// ("nolla kuusi" = 06, "kaksi seitsemän" = 27, "nolla kuusi kaksi seitsemän" = 0627 = 6/27).
+const SEP_WORDS = new Set(["kautta", "kauttaviiva", "kenoviiva", "viiva", "per", "slash", "piste", "pistettä"]);
+const isDigitToken = (w) => w in ONES || /^\d$/.test(w);
+function normalizeSpoken(t) {
+  const tokens = t.split(/\s+/).filter(Boolean).map((w) => (SEP_WORDS.has(w) ? "/" : w));
+  const groups = [[]];
+  for (const w of tokens) { if (w === "/") groups.push([]); else groups[groups.length - 1].push(w); }
+  return groups.map((g) => (g.length >= 2 && g.every(isDigitToken) ? g.map((w) => (w in ONES ? ONES[w] : w)).join("") : g.join(" "))).join("/");
+}
+
 // Puheesta tai kirjoituksesta päiväykseksi. Palauttaa {ymd:'YYYYMMDD', monthOnly, label} tai null.
 export function parseSpokenDate(text) {
   let t = String(text ?? "").trim().toLowerCase();
   if (!t) return null;
+  t = normalizeSpoken(t);
   t = t.replace(/\s*(\.|\/|-|:)\s*/g, "$1");
 
   // Numeromuodot

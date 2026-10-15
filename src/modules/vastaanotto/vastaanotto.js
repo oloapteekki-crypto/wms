@@ -22,6 +22,7 @@ const app = $("app");
 
 let store, user = null, camera = null;
 let currentWorker = loadJson("wms_worker", "");
+let autoVoice = loadJson("wms_vastaanotto_autovoice", false); // puhe käynnistyy itsestään skannauksen jälkeen
 let recent = [];
 let unsub = null;
 let voice = null; // {key, mode, pending, handle}
@@ -35,21 +36,34 @@ let S = {
 /* ───────── Render (säilyttää kentän fokuksen) ───────── */
 function viewModel() {
   return {
-    S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice,
+    S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice,
     camOk: cameraSupported(), camOn: !!camera?.running, dirOk: typeof window.showDirectoryPicker === "function",
     xmlName: S.order ? xmlFileName(S.order.supplier, S.order.orderDate) : "",
   };
 }
 
+// Skannauksen jälkeen avattu rivi pidetään näkyvissä, vaikka näkymä piirtyisi uudelleen (Firebase-päivitykset, hyllypaikkojen lataus).
+// Ilman tätä focus() palautti skannauskentän ja sivu hyppäsi ylös, jolloin työntekijä joutui skrollaamaan riville itse.
+let scrollTarget = null; // {key, until}
+function applyScroll() {
+  if (!scrollTarget || Date.now() > scrollTarget.until) { scrollTarget = null; return false; }
+  const el = $("line-" + scrollTarget.key);
+  if (!el) return false;
+  el.scrollIntoView({ block: "start" });
+  return true;
+}
+
 function render() {
+  const y = window.scrollY;
   const active = document.activeElement;
   const keep = active && app.contains(active) && active.id ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
   if (store.auth.required && !user) { app.innerHTML = loginHtml(S.error); return; }
   app.innerHTML = S.phase === "order" && S.order ? orderView(viewModel()) : startView(viewModel());
   if (keep) {
     const el = $(keep.id);
-    if (el) { el.focus(); try { el.setSelectionRange(keep.start, keep.end); } catch { /* ei tekstikenttä */ } }
+    if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(keep.start, keep.end); } catch { /* ei tekstikenttä */ } }
   }
+  if (!applyScroll()) window.scrollTo(0, y);
 }
 
 function scheduleRender() {
@@ -164,6 +178,7 @@ function finishLine(key, what = "") {
   if (st === "pending" || st === "needsDate") return false;
   const p = rec.qty > 0 ? placement(l, S.master) : null;
   stopVoice();
+  scrollTarget = null;
   const sum = st === "none" ? " — ei tullut" : ` (yhteensä ${rec.qty}/${l.ordered})`;
   setState({
     selectedKey: null, voiceCandidate: null, error: null,
@@ -185,19 +200,33 @@ function commitDraft(key) {
 function selectLine(key) {
   stopVoice();
   resetDraft(key);
+  scrollTarget = { key, until: Date.now() + 2500 };
   setState({ selectedKey: key, voiceCandidate: null });
-  setTimeout(() => $("line-" + lineByKey(key)?.sku)?.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
 }
 /* ───────── Puhe: määrä → vahvistus → päiväys → vahvistus ───────── */
 function stopVoice() { voice?.handle?.stop(); voice = null; S.voiceText = null; S.voiceCandidate = null; }
 
+// Virhekoodit ihmisen luettavaksi: käsipäätteellä on vaikea arvata, miksi mikrofoni ei käynnisty
+function voiceErrorText(e) {
+  const map = {
+    "not-allowed": "Mikrofoni on estetty. Salli mikrofoni selaimen sivuasetuksista (lukkokuvake osoiterivillä) ja yritä uudelleen.",
+    "service-not-allowed": "Selain ei salli puheentunnistusta tälle sivulle. Käytä Chromea ja salli mikrofoni.",
+    "audio-capture": "Mikrofonia ei löydy tai se on toisen sovelluksen käytössä.",
+    "network": "Puheentunnistus tarvitsee verkkoyhteyden. Tarkista Wi-Fi.",
+    "language-not-supported": "Suomen kielen puheentunnistus ei ole käytettävissä tässä selaimessa.",
+    "not-supported": "Tämä selain ei tue puheentunnistusta. Käytä Chromea.",
+    "mic-loop": "Mikrofoni sammuu heti uudelleen. Tarkista lupa tai syötä käsin.",
+  };
+  return (map[e] || "Puhevirhe: " + e);
+}
+
 function startVoice(key) {
-  if (!speechSupported()) { setState({ error: "Puheentunnistus ei ole tuettu tässä selaimessa" }); return; }
+  if (!speechSupported()) { setState({ error: voiceErrorText("not-supported") }); return; }
   stopVoice();
   voice = { key, mode: "qty", pending: null, qty: null, handle: null };
   voice.handle = listenText({
     onText: onVoiceText,
-    onError: (e) => { voice = null; setState({ voiceText: null, error: e === "not-allowed" ? "Mikrofoni estetty" : e === "mic-loop" ? "Mikrofoni ei toimi — syötä käsin" : "Puhevirhe: " + e }); },
+    onError: (e) => { voice = null; setState({ voiceText: null, error: voiceErrorText(e) }); },
   });
   setState({ voiceText: "🎤 Sano tämän laatikon määrä", error: null });
 }
@@ -256,6 +285,7 @@ function handleScan(raw) {
   const done = st !== "pending" && st !== "needsDate";
   setState({ error: null, result: { type: "ok", text: "→ " + line.name }, filter: done && S.filter === "open" ? "all" : S.filter });
   selectLine(key);
+  if (autoVoice && speechSupported()) startVoice(key); // skannaus on käyttäjän toiminto, joten mikrofoni saa käynnistyä
 }
 
 async function toggleCamera() {
@@ -379,6 +409,7 @@ app.addEventListener("click", (e) => {
 app.addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.change === "worker") { currentWorker = t.value; saveJson("wms_worker", currentWorker); return; }
+  if (t.dataset.change === "auto-voice") { autoVoice = t.checked; saveJson("wms_vastaanotto_autovoice", autoVoice); if (!autoVoice) stopVoice(); scheduleRender(); return; }
   if (t.id === "qty-input") {
     const n = parseInt(t.value, 10);
     if (Number.isNaN(n) || n < 0 || n > 99999) { setState({ error: "Määrän pitää olla kokonaisluku ≥ 0" }); return; }

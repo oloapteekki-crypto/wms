@@ -88,7 +88,7 @@ function lineCard(l, v) {
       ${l.ean ? "" : `<div class="muted small">Tuotteella ei ole EAN-koodia taulukossa.</div>`}
     </div>`;
   }
-  return `<div class="line ${STATUS[st].cls}${open ? " open" : ""}" id="line-${sku}">
+  return `<div class="line ${STATUS[st].cls}${open ? " open" : ""}" id="line-${esc(key)}">
     <div class="line-head" data-action="select-line" data-key="${esc(key)}">
       <div class="line-main"><div class="line-name">${esc(l.name)}</div>
         <div class="mono muted">${sku}${l.ean ? " | EAN " + esc(l.ean) : ""}</div>${chip ? `<div>${chip}</div>` : ""}</div>
@@ -119,6 +119,7 @@ export function orderView(v) {
         <span class="chip st-none">Ei tullut ${sum.none}</span><span class="chip st-date">Puuttuu pvm ${sum.needsDate}</span><span class="chip st-pending">Odottaa ${sum.pending}</span></div>
       <div class="scanrow"><input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa tuotteen EAN" autocomplete="off">
         ${v.camOk ? `<button class="cam-btn${v.camOn ? " on" : ""}" data-action="toggle-cam">📷</button>` : ""}</div>
+      <label class="small muted"><input type="checkbox" data-change="auto-voice" ${v.autoVoice ? "checked" : ""}> 🎤 Puhekuittaus käynnistyy skannauksen jälkeen</label>
       ${result(S.result)}${err(S.error)}
       ${S.masterError ? `<div class="error">⚠ Kärrytieto ei näy: ${esc(S.masterError)} <button class="btn-sm btn-outline" data-action="load-master">Yritä uudelleen</button></div>` : ""}</div>
     <div class="tabs">${tabs.map(([k, l]) => `<button class="tab${S.tab === k ? " on" : ""}" data-action="tab" data-tab="${k}">${l}</button>`).join("")}</div>

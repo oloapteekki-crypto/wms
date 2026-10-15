@@ -128,3 +128,29 @@ export function summarizeInventory(counted, products, dismissed, date) {
     shelvesTotal: keys.length, shelvesDone,
   };
 }
+
+/* ───────── Siirrot ───────── */
+// transfers: sessions/{pvm}/siirrot = {avain(sku|from|to): {state: claimed|picked|placed|skipped, by, t, batch}}
+const CLAIM_TTL = 90 * 60 * 1000;
+export function summarizeTransfers(transfers, now = Date.now()) {
+  const counts = { claimed: 0, picked: 0, placed: 0, skipped: 0 };
+  const workers = {};
+  const recent = [];
+  for (const [key, r] of Object.entries(transfers || {})) {
+    if (!r || !counts.hasOwnProperty(r.state)) continue;
+    if (r.state === "claimed" && now - (r.t || 0) > CLAIM_TTL) continue; // vanhentunut varaus = vapaa
+    counts[r.state]++;
+    const w = (workers[r.by || "(ei valittu)"] ||= { worker: r.by || "(ei valittu)", claimed: 0, picked: 0, placed: 0, skipped: 0 });
+    w[r.state]++;
+    if (r.state === "picked" || r.state === "placed") {
+      const [sku, from, to] = key.split("|");
+      recent.push({ t: r.t || 0, worker: r.by, state: r.state, sku, from, to });
+    }
+  }
+  return {
+    ...counts,
+    total: counts.claimed + counts.picked + counts.placed + counts.skipped,
+    byWorker: Object.values(workers).sort((a, b) => b.placed - a.placed || b.picked - a.picked),
+    recent: recent.sort((a, b) => b.t - a.t).slice(0, 12),
+  };
+}

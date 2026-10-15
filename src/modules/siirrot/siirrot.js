@@ -3,7 +3,7 @@
 // tila avainnettu (sku|from|to) jotta vanha tila ei piilota uutta ehdotusta, vahvistus ennen nollausta.
 // Jaettu tila: useampi työntekijä ottaa omat erät (varaus), ja tila kulkee Firebasen kautta reaaliajassa
 // (sessions/{pvm}/siirrot/{avain}). Toinen työntekijä ei saa samaa siirtoa, ja kaikki näkevät etenemisen.
-import { cmpSerpentine, sizeDiff } from "../../lib/locations.js";
+import { cmpSerpentine, sizeDiff, SIZES, sizeIdx } from "../../lib/locations.js";
 import { parseCsvObjects, pick, hasColumn, fetchCsvText } from "../../lib/csv.js";
 import { loadJson, saveJson } from "../../lib/storage.js";
 import { esc, $, show } from "../../lib/ui.js";
@@ -16,6 +16,7 @@ const KEY_PHASE = "wms_siirrot_phase";
 const KEY_BATCH = "wms_siirrot_batch";
 const CLAIM_TTL = 90 * 60 * 1000; // vapauttamaton varaus vanhenee 90 min kuluttua
 // "tyhjä" = sopivaa vapaata paikkaa ei löytynyt, "dimensiot" = mitat puuttuvat, "n/a" = ei tietoa: ei kohdepaikkaa, joten ei siirrettävä
+const PRODUCTS_CSV = "https://storage.googleapis.com/olo-export-data/hyllytys-app-export000000000000.csv";
 const NO_TARGET = ["ok", "uusi", "", "vanha", "not available", "tyhjä", "dimensiot", "n/a"];
 
 let store, user = null, unsub = null;
@@ -23,6 +24,10 @@ let me = loadJson("wms_worker", "");
 let batch = loadJson(KEY_BATCH, ""); // oman erän tunniste
 let phase = loadJson(KEY_PHASE, "pick") === "put" ? "put" : "pick";
 let allItems = [];
+let view = "work"; // work | free
+let locations = null; // [{code, size, rank}] kaikki hyllypaikat (Firebase files/locations)
+let occupied = null; // Set: tuotteille annetut paikat (tuoterekisteri)
+let freeSize = "ALL", freeQuery = "", freeError = "", freeLoading = false;
 let shared = {}; // avain -> {state: claimed|picked|placed|skipped, by, t, batch}
 
 const itemKey = (it) => `${it.sku}|${it.from}|${it.to}`;
@@ -196,6 +201,10 @@ function updateProgress() {
 function refresh() { renderCards(); updateProgress(); }
 
 function setPhase(p) {
+  view = "work";
+  show($("work-view"), true);
+  show($("free-view"), false);
+  $("btn-free").classList.remove("active");
   phase = p;
   saveJson(KEY_PHASE, p);
   $("btn-pick").classList.toggle("active", p === "pick");
@@ -205,10 +214,102 @@ function setPhase(p) {
   refresh();
 }
 
+/* ───────── Vapaat paikat ───────── */
+// Tyhjä paikka = hyllypaikka, jota ei ole annettu millekään tuotteelle (tuoterekisterin storage_location).
+// Reaaliajassa: kerätyn/hyllytetyn siirron lähtöpaikka vapautuu, ja varatun/siirretyn kohdepaikka täyttyy.
+const up = (s) => String(s || "").trim().toUpperCase();
+
+export function parseLocations(text) {
+  return String(text || "").split(/\r?\n/).map((l) => l.split(",")).filter((c) => c[0] && c[0] !== "code")
+    .map((c) => ({ code: up(c[0]), size: (c[1] || "").trim(), rank: Number(c[2]) || 0 }));
+}
+
+// Hyllypaikat-taulukon CSV (alue,kaytava,...,hyllypaikka,...,paikan_koko,picking_rank) -> tiivis "code,size,rank"
+export function compactLocations(csvText) {
+  const rows = parseCsvObjects(csvText);
+  return "code,size,rank\n" + rows.map((r) => [up(pick(r, "hyllypaikka")), pick(r, "paikan_koko"), pick(r, "picking_rank")])
+    .filter((c) => c[0]).map((c) => c.join(",")).join("\n");
+}
+
+function computeFree() {
+  const known = new Set(locations.map((l) => l.code));
+  const free = new Set(locations.filter((l) => !occupied.has(l.code)).map((l) => l.code));
+  const now = Date.now();
+  for (const it of allItems) {
+    const r = rec(it);
+    if (!r || (r.state === "claimed" && now - (r.t || 0) > CLAIM_TTL)) continue;
+    if ((r.state === "picked" || r.state === "placed") && known.has(up(it.from))) free.add(up(it.from));
+    if (["claimed", "picked", "placed"].includes(r.state)) free.delete(up(it.to));
+  }
+  return locations.filter((l) => free.has(l.code));
+}
+
+async function loadFreeData() {
+  freeLoading = true; freeError = ""; renderFree();
+  try {
+    if (!locations) {
+      const txt = await store.get("files/locations");
+      if (txt) locations = parseLocations(txt);
+    }
+    if (!occupied) {
+      const rows = parseCsvObjects(await fetchCsvText(PRODUCTS_CSV));
+      occupied = new Set(rows.map((r) => up(pick(r, "storage_location"))).filter(Boolean));
+      if (!occupied.size) { occupied = null; throw new Error("Tuoterekisteri ei sisältänyt hyllypaikkoja"); }
+    }
+  } catch (e) { freeError = "Tietojen haku epäonnistui: " + e.message; }
+  freeLoading = false;
+  renderFree();
+}
+
+function renderFree() {
+  const el = $("free-body");
+  if (freeLoading) { el.innerHTML = `<div class="loading"><div class="msg">Haetaan hyllypaikkoja…</div></div>`; return; }
+  if (freeError) { el.innerHTML = `<div class="error-box">${esc(freeError)}</div><button class="btn" id="free-retry">Yritä uudelleen</button>`; return; }
+  if (!locations) {
+    el.innerHTML = `<div class="summary"><h2>Hyllypaikkalista puuttuu</h2><p>Lataa Hyllypaikat_MASTER-taulukon välilehti kaikki_hyllypaikat CSV-tiedostona (Tiedosto → Lataa → CSV). Lista tallentuu kaikkien käyttöön.</p>
+      <input type="file" id="loc-file" accept=".csv,text/csv"></div>`;
+    return;
+  }
+  if (!occupied) { el.innerHTML = ""; loadFreeData(); return; }
+  const free = computeFree();
+  const bySize = {};
+  free.forEach((l) => { bySize[l.size || "?"] = (bySize[l.size || "?"] || 0) + 1; });
+  const sizes = [...new Set([...SIZES, ...Object.keys(bySize)])].filter((s) => bySize[s]);
+  const q = up(freeQuery);
+  const shown = free.filter((l) => (freeSize === "ALL" || l.size === freeSize) && (!q || l.code.includes(q)))
+    .sort((a, b) => cmpSerpentine(a.code, b.code));
+  const cap = 300;
+  const groups = {};
+  shown.slice(0, cap).forEach((l) => { (groups[l.code.split("-")[0]] ||= []).push(l); });
+  el.innerHTML = `
+    <div class="status-row" style="margin-bottom:.5rem"><span>Vapaita paikkoja <b>${free.length}</b> / ${locations.length}</span><span>Tuoterekisteri + siirrot tänään</span></div>
+    <div class="chips-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.75rem">
+      <button class="phase-btn${freeSize === "ALL" ? " active" : ""}" data-size="ALL" style="flex:none;border:1px solid #ddd;border-radius:999px;padding:6px 12px">Kaikki ${free.length}</button>
+      ${sizes.map((s) => `<button class="phase-btn${freeSize === s ? " active" : ""}" data-size="${esc(s)}" style="flex:none;border:1px solid #ddd;border-radius:999px;padding:6px 12px">${esc(s)} ${bySize[s]}</button>`).join("")}
+    </div>
+    <input id="free-q" type="search" placeholder="Hae paikkaa (esim. A2-1)" value="${esc(freeQuery)}" style="width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;margin-bottom:.75rem;font-size:14px">
+    ${Object.keys(groups).length ? Object.entries(groups).map(([aisle, ls]) => `<div class="card"><div class="card-name">${esc(aisle)} <span class="muted" style="font-weight:400">${ls.length}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${ls.map((l) => `<span class="badge" style="background:#f4f9f7;border:1px solid #c9e0d8;color:#1e5f49;font-family:monospace;font-size:12px">${esc(l.code)} <span style="opacity:.7">${esc(l.size)}</span></span>`).join("")}</div></div>`).join("")
+      : `<div class="loading"><div class="msg">Ei vapaita paikkoja tällä valinnalla</div></div>`}
+    ${shown.length > cap ? `<div class="muted" style="text-align:center;font-size:12px">Näytetään ${cap} / ${shown.length}. Rajaa kokoa tai hakua.</div>` : ""}`;
+  if (document.activeElement?.id === "free-q") { /* säilytä kohdistus */ }
+}
+
+function showFree() {
+  view = "free";
+  $("btn-pick").classList.remove("active");
+  $("btn-put").classList.remove("active");
+  $("btn-free").classList.add("active");
+  show($("work-view"), false);
+  show($("free-view"), true);
+  renderFree();
+  if (!locations || !occupied) loadFreeData();
+}
+
 /* ───────── Käynnistys ───────── */
 function subscribeShared() {
   unsub?.();
-  unsub = store.subscribe(basePath(), (val) => { shared = val || {}; if (allItems.length) refresh(); });
+  unsub = store.subscribe(basePath(), (val) => { shared = val || {}; if (allItems.length) { refresh(); if (view === "free" && locations && occupied) renderFree(); } });
 }
 
 function renderWorkerSelect() {
@@ -247,6 +348,27 @@ function showLogin(error) {
 
 $("btn-pick").addEventListener("click", () => setPhase("pick"));
 $("btn-put").addEventListener("click", () => setPhase("put"));
+$("btn-free").addEventListener("click", showFree);
+$("free-view").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-size]");
+  if (b) { freeSize = b.dataset.size; renderFree(); }
+  if (e.target.id === "free-retry") { occupied = null; loadFreeData(); }
+});
+$("free-view").addEventListener("input", (e) => {
+  if (e.target.id === "free-q") { freeQuery = e.target.value; const pos = e.target.selectionStart; renderFree(); const q = $("free-q"); q.focus(); q.setSelectionRange(pos, pos); }
+});
+$("free-view").addEventListener("change", async (e) => {
+  if (e.target.id !== "loc-file") return;
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const compact = compactLocations(await f.text());
+    if (parseLocations(compact).length < 100) throw new Error("Tiedostosta ei löytynyt hyllypaikkoja (sarakkeet hyllypaikka, paikan_koko)");
+    await store.set("files/locations", compact);
+    locations = parseLocations(compact);
+    renderFree();
+  } catch (err) { freeError = "Tiedoston luku epäonnistui: " + err.message; renderFree(); }
+});
 $("take-btn").addEventListener("click", takeBatch);
 $("release-btn").addEventListener("click", releaseUnpicked);
 $("reset-btn").addEventListener("click", resetSession);

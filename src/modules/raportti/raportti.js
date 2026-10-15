@@ -4,7 +4,7 @@ import { createStore, todayKey } from "../../lib/store/index.js";
 import { loginHtml, doLogin } from "../../lib/auth-ui.js";
 import { esc, $ } from "../../lib/ui.js";
 import {
-  summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, fmtDuration, timeOf,
+  summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, summarizeTransfers, fmtDuration, timeOf,
 } from "./report.js";
 
 const app = $("app");
@@ -62,7 +62,8 @@ function render() {
   const unload = summarizeUnloading(session);
   const active = activeNow(session, now);
   const inv = summarizeInventory(counted, products, dismissed, date);
-  const hasData = shelving.batchCount + shelving.interruptedCount + log.events + unload.boxes + inv.countedToday > 0;
+  const transfers = summarizeTransfers(session?.siirrot, now);
+  const hasData = shelving.batchCount + shelving.interruptedCount + log.events + unload.boxes + inv.countedToday + transfers.total > 0;
   const isToday = date === todayKey();
 
   const closed = Object.entries(unload.closedBatches).map(([c, n]) => `${esc(c)}: ${n}`).join(", ") || "–";
@@ -111,11 +112,24 @@ function render() {
       ${inv.byWorker.length ? `<table><thead><tr><th>Työntekijä</th><th class="r">Tuotteita</th></tr></thead><tbody>${inv.byWorker.map((w) => `<tr><td>${esc(w.worker)}</td><td class="r">${w.n}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei inventointeja</div>`}
       <div class="small"><a href="../inventointi/erot.html">Avaa erolista →</a></div></div>
 
+    <h2>Siirrot</h2>
+    <div class="tiles">
+      ${tile("Hyllytetty uusille paikoille", transfers.placed, "siirtoa valmiina")}
+      ${tile("Kerätty, ei vielä hyllytetty", transfers.picked, "kärryissä")}
+      ${tile("Varattu", transfers.claimed, "ei vielä kerätty")}
+      ${tile("Ohitettu", transfers.skipped, "siirtoa")}
+    </div>
+    <div class="card"><h3>Siirtäjät</h3>
+      ${transfers.byWorker.length ? `<table><thead><tr><th>Työntekijä</th><th class="r">Hyllytetty</th><th class="r">Kerätty</th><th class="r">Varattu</th><th class="r">Ohitettu</th></tr></thead><tbody>
+        ${transfers.byWorker.map((w) => `<tr><td>${esc(w.worker)}</td><td class="r">${w.placed}</td><td class="r">${w.picked}</td><td class="r">${w.claimed}</td><td class="r">${w.skipped}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei siirtoja</div>`}
+      ${transfers.recent.length ? `<h3 style="margin-top:12px">Viimeisimmät siirrot</h3><table><thead><tr><th>Klo</th><th>Työntekijä</th><th>Tuote</th><th>Mistä</th><th>Mihin</th><th>Tila</th></tr></thead><tbody>
+        ${transfers.recent.map((e) => `<tr><td>${timeOf(e.t)}</td><td>${esc(e.worker)}</td><td class="mono">${esc(e.sku)}</td><td class="mono">${esc(e.from)}</td><td class="mono">${esc(e.to)}</td><td>${e.state === "placed" ? "hyllytetty" : "kerätty"}</td></tr>`).join("")}</tbody></table>` : ""}</div>
+
     <div class="card"><h3>Viimeisimmät hyllytykset</h3>
       ${log.recent.length ? `<table><thead><tr><th>Klo</th><th>Työntekijä</th><th>Tuote</th><th>Paikka</th><th class="r">+</th><th class="r">Yht.</th></tr></thead><tbody>
         ${log.recent.map((e) => `<tr><td>${timeOf(e.t)}</td><td>${esc(e.worker)}</td><td>${esc(e.name)}</td><td class="mono">${esc(e.location)}</td><td class="r">${e.added > 0 ? "+" : ""}${e.added}</td><td class="r">${e.total}/${e.expected}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei tapahtumia</div>`}</div>
     ${hasData ? "" : `<div class="card empty">Ei dataa valitulle päivälle.</div>`}
-    <div class="small muted foot">Siirrot ja Dimensiot tallentavat vain laitteelle, joten ne eivät näy raportissa.</div>
+    <div class="small muted foot">Dimensiot tallentaa vain laitteelle, joten se ei näy raportissa.</div>
     <div id="tip" class="tip" hidden></div>`;
 }
 

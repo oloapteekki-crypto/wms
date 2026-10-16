@@ -47,12 +47,12 @@ export function startView(v) {
         <input type="file" id="order-file" accept=".xlsx" style="font-size:14px;width:100%"></div>
       <button class="btn" data-action="load-file" ${S.loading ? "disabled" : ""}>${esc(S.loading || "Avaa tilaus")}</button>
       ${err(S.error)}${result(S.result)}</div>
-    ${recent.length ? `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div>${recent.map((o) => `
+    ${(() => { const doneN = recent.filter((o) => o.isDone).length; const list = S.showDone ? recent : recent.filter((o) => !o.isDone); const doneToggle = doneN ? `<button class="linkbtn small muted" style="margin-top:8px" data-action="toggle-done">${S.showDone ? "Piilota valmiit" : "Näytä valmiit tilaukset (" + doneN + ")"}</button>` : ""; return list.length ? `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div>${list.map((o) => `
       <div class="order-row" data-action="open-order" data-id="${esc(o.id)}">
         <div><b>${esc(o.supplier)}</b> <span class="muted">${esc(o.date)}</span>${o.done === 0 ? ` <span class="chip st-date">Uusi</span>` : ""}</div>
         <div class="muted">${o.done}/${o.total} riviä${o.xmlAt ? " • XML tehty" : ""}</div>
-        <div>${arrivalChip(o, Date.now())}</div></div>`).join("")}</div>`
-      : `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div><div class="muted small">Ei tallennettuja tilauksia. Lähetä tilaus Sheetsistä (WMS-valikko) tai lataa .xlsx yllä.</div></div>`}`;
+        <div>${arrivalChip(o, Date.now())}</div></div>`).join("")}${doneToggle}</div>`
+      : `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div><div class="muted small">Ei avoimia tilauksia. Lähetä tilaus Sheetsistä (WMS-valikko) tai lataa .xlsx yllä.</div>${doneToggle}</div>`; })()}`;
 }
 
 /* ───────── Tilaus ───────── */

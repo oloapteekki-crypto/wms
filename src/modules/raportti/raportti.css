@@ -45,3 +45,4 @@ tr.stale td{color:var(--bad)}
 .text-input{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;font-size:15px;background:#fff}
 .mb-12{margin-bottom:12px}
 .error{color:#c0392b;font-size:13px;text-align:center;margin-top:6px}
+tr.prio td{background:#fef2f2}

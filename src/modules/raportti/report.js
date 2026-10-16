@@ -188,7 +188,7 @@ export function summarizeReceiving(orders, date, now = Date.now()) {
       id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "",
       status: completion ? "done" : started ? "progress" : "waiting",
       lines: lines.length, ordered: sum(lines, (l) => l.ordered), received,
-      arrival, started, completion,
+      arrival, started, completion, priority: o.priority || null,
       waitMs: arrival ? (started ? started - arrival : now - arrival) : null,
       durationMs: started ? (completion || now) - started : null,
       workMs: started ? work : null,
@@ -196,7 +196,8 @@ export function summarizeReceiving(orders, date, now = Date.now()) {
     });
   }
   const order = { waiting: 0, progress: 1, done: 2 };
-  rows.sort((a, b) => order[a.status] - order[b.status] || (a.status === "waiting" ? (a.arrival || 0) - (b.arrival || 0) : (b.completion || b.started || 0) - (a.completion || a.started || 0)));
+  const prio = (r) => (r.priority && r.status !== "done" ? 0 : 1);
+  rows.sort((a, b) => prio(a) - prio(b) || order[a.status] - order[b.status] || (a.status === "waiting" ? (a.arrival || 0) - (b.arrival || 0) : (b.completion || b.started || 0) - (a.completion || a.started || 0)));
   const done = rows.filter((r) => r.status === "done");
   const avg = (arr) => (arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : null);
   const waiting = rows.filter((r) => r.status === "waiting" && r.arrival);

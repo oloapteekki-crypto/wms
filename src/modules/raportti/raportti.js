@@ -3,6 +3,7 @@
 import { createStore, todayKey } from "../../lib/store/index.js";
 import { loginHtml, doLogin } from "../../lib/auth-ui.js";
 import { esc, $ } from "../../lib/ui.js";
+import { loadJson, saveJson } from "../../lib/storage.js";
 import {
   summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, summarizeTransfers, summarizeReceiving, fmtDuration, timeOf,
 } from "./report.js";
@@ -123,8 +124,8 @@ function render() {
       ${tile("Keskim. odotus", recv.avgWaitMs !== null ? fmtDuration(recv.avgWaitMs) : "–", "saapumisesta purun alkuun")}
     </div>
     <div class="card"><h3>Tilaukset</h3>
-      ${recv.rows.length ? `<table><thead><tr><th>Toimittaja</th><th>Tila</th><th>Saapui</th><th>Purku alkoi</th><th>Valmis</th><th class="r">Odotus</th><th class="r">Kesto</th><th class="r">Työaika</th><th class="r">Kpl</th><th>Purkajat</th></tr></thead><tbody>
-        ${recv.rows.map((x) => `<tr><td>${esc(x.supplier)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? timeOf(x.arrival) : "–"}</td><td>${x.started ? timeOf(x.started) : "–"}</td><td>${x.completion ? timeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td></tr>`).join("")}</tbody></table>
+      ${recv.rows.length ? `<table><thead><tr><th>Toimittaja</th><th>Tila</th><th>Saapui</th><th>Purku alkoi</th><th>Valmis</th><th class="r">Odotus</th><th class="r">Kesto</th><th class="r">Työaika</th><th class="r">Kpl</th><th>Purkajat</th><th>Prioriteetti</th></tr></thead><tbody>
+        ${recv.rows.map((x) => `<tr class="${x.priority && x.status !== "done" ? "prio" : ""}"><td>${esc(x.supplier)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? timeOf(x.arrival) : "–"}</td><td>${x.started ? timeOf(x.started) : "–"}</td><td>${x.completion ? timeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td><td>${x.status === "done" ? "" : x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>`).join("")}</tbody></table>
         <div class="small muted">Saapumisaika merkitään Vastaanotossa painikkeella "Merkitse saapuneeksi varastolle". Odotus = saapumisesta purun alkuun, kesto = purun alusta valmistumiseen, työaika ilman yli 10 min taukoja.</div>` : `<div class="empty">Ei vastaanotettuja tilauksia tälle päivälle</div>`}</div>
 
     <h2>Siirrot</h2>
@@ -172,6 +173,15 @@ function subscribeInventory() {
 
 /* ───────── Tapahtumat ───────── */
 app.addEventListener("click", async (e) => {
+  const pr = e.target.closest("[data-action=prio-on],[data-action=prio-off]");
+  if (pr) {
+    const id = pr.dataset.id;
+    if (pr.dataset.action === "prio-off") { await store.remove(`vastaanotto/${id}/priority`); return; }
+    let by = loadJson("wms_worker", "");
+    if (!by) { by = (prompt("Nimesi (tallentuu prioriteettimerkintään):") || "").trim(); if (!by) return; saveJson("wms_worker", by); }
+    await store.set(`vastaanotto/${id}/priority`, { t: Date.now(), by });
+    return;
+  }
   if (e.target.closest("[data-action=login]")) { authError = await doLogin(store, $("login-email"), $("login-pass")); render(); }
 });
 app.addEventListener("change", (e) => {

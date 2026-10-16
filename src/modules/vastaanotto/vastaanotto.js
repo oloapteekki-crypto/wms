@@ -32,7 +32,7 @@ let renderTimer = null;
 
 let S = {
   phase: "start", order: null, recs: {}, tab: "lines", filter: "open", selectedKey: null, error: null, result: null, loading: null,
-  master: null, masterError: null, masterLoading: false, voiceCandidate: null, voiceText: null, draft: { key: null, qty: null, end: null }, drafts: {}, shelvingSentAt: null, xmlAt: null, arrival: null, completion: null,
+  master: null, masterError: null, masterLoading: false, voiceCandidate: null, voiceText: null, draft: { key: null, qty: null, end: null }, drafts: {}, shelvingSentAt: null, xmlAt: null, arrival: null, completion: null, priority: null,
 };
 
 /* ───────── Render (säilyttää kentän fokuksen) ───────── */
@@ -91,11 +91,12 @@ async function loadRecent() {
       id, supplier: o.meta?.supplier?.name || id, date: o.meta?.orderDate ? formatYmd(o.meta.orderDate) : "",
       total: Object.keys(o.lines || {}).length, done: Object.values(o.rec || {}).filter(isLineDone).length, xmlAt: o.xmlAt || null,
       sort: o.meta?.orderDate || "", loadedAt: o.meta?.loadedAt || 0,
-      arrival: o.arrival?.t || null, completion: o.completion?.t || null, started: Object.keys(o.rec || {}).length > 0,
+      arrival: o.arrival?.t || null, completion: o.completion?.t || null, started: Object.keys(o.rec || {}).length > 0, priority: o.priority || null,
     }));
     // Järjestys purun priorisointia varten: saapuneet purkua odottamassa (vanhin ensin), kesken, ei vielä saapunut, valmiit
     const grp = (o) => (o.completion ? 3 : o.started ? 1 : o.arrival ? 0 : 2);
-    recent.sort((a, b) => grp(a) - grp(b) || (grp(a) === 0 ? a.arrival - b.arrival : grp(a) === 3 ? b.completion - a.completion : b.loadedAt - a.loadedAt));
+    const prio = (o) => (o.priority && !o.completion ? 0 : 1); // ostajan priorisoimat keskeneräiset tilaukset kärkeen
+    recent.sort((a, b) => prio(a) - prio(b) || (prio(a) === 0 ? a.priority.t - b.priority.t : 0) || grp(a) - grp(b) || (grp(a) === 0 ? a.arrival - b.arrival : grp(a) === 3 ? b.completion - a.completion : b.loadedAt - a.loadedAt));
     recent = recent.slice(0, 20);
   } catch { recent = []; }
 }
@@ -116,6 +117,7 @@ function openOrder(id) {
     S.xmlAt = val.xmlAt || null;
     S.arrival = val.arrival || null;
     S.completion = val.completion || null;
+    S.priority = val.priority || null;
     if (S.phase !== "order") S.phase = "order";
     scheduleRender();
     // Hyllypaikat tarvitaan heti, jotta sovellus voi kertoa skannattaessa mihin kärryyn tuote laitetaan
@@ -460,6 +462,12 @@ const actions = {
   "load-master": loadMaster,
   "to-shelving": () => toShelving(),
   "mark-arrived": (d) => markArrived(d.id),
+  "prio-on": async (d) => {
+    if (!currentWorker) { setState({ error: "Valitse ensin käyttäjä" }); return; }
+    await store.set(`vastaanotto/${d.id}/priority`, { t: Date.now(), by: currentWorker });
+    if (S.phase !== "order") { await loadRecent(); scheduleRender(); }
+  },
+  "prio-off": async (d) => { await store.remove(`vastaanotto/${d.id}/priority`); if (S.phase !== "order") { await loadRecent(); scheduleRender(); } },
   "clear-arrived": async (d) => { if (confirm("Poistetaanko saapumismerkintä?")) { await store.remove(`vastaanotto/${d.id}/arrival`); if (S.phase !== "order") { await loadRecent(); scheduleRender(); } } },
   "dl-xml": () => {
     const open = S.order.lines.filter((l) => ["pending", "needsDate"].includes(lineStatus(l, S.recs[l.key]))).length;

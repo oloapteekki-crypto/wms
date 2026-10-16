@@ -14,7 +14,17 @@ const STATUS = {
 // Kesto luettavaksi ("2 h 10 min"); saapumis- ja valmistumisleimat tilauslistaan ja tilausnäkymään
 export const fmtDur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
 const fmtWhen = (t) => new Date(t).toLocaleString("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+// Prioriteetti: ostaja nostaa tilauksen purkujonon kärkeen; merkintä näkyy listassa ja Raportissa
+function prioChip(o) {
+  if (o.completion) return "";
+  return o.priority
+    ? `<span class="chip st-none">⚡ Prioriteetti${o.priority.by ? " (" + esc(o.priority.by) + ")" : ""}</span> <button class="linkbtn small muted" data-action="prio-off" data-id="${esc(o.id)}" aria-label="Poista prioriteetti">✕</button> `
+    : `<button class="btn-sm btn-outline" style="margin:6px 6px 0 0;padding:6px 10px;font-size:12px" data-action="prio-on" data-id="${esc(o.id)}">⚡ Nosta prioriteetiksi</button> `;
+}
 function arrivalChip(o, now) {
+  return prioChip(o) + arrivalChipBase(o, now);
+}
+function arrivalChipBase(o, now) {
   if (o.completion) return `<span class="chip st-ok">✓ Purettu ${esc(fmtWhen(o.completion))}</span>${o.arrival ? ` <span class="muted small">odotti ${fmtDur(o.completion - o.arrival)}</span>` : ""}`;
   if (o.arrival) return `<span class="chip st-date">📦 Saapunut ${esc(fmtWhen(o.arrival))}</span> <span class="small" style="font-weight:600">${o.started ? "purku kesken" : "odottaa purkua " + fmtDur(now - o.arrival)}</span>
     <button class="linkbtn small muted" data-action="clear-arrived" data-id="${esc(o.id)}" aria-label="Poista saapumismerkintä">✕</button>`;
@@ -124,7 +134,7 @@ export function orderView(v) {
       <div class="muted small">Tilaus ${esc(formatYmd(order.orderDate))} • ${sum.total} riviä • ${sum.orderedUnits} kpl tilattu${order.updatedAt ? ` • tilausta päivitetty Sheetsistä ${new Date(order.updatedAt).toLocaleString("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}</div></div>
       <div class="big-pct">${sum.done}/${sum.total}</div></div>
       <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${pct}%"></div></div>
-      <div style="margin-top:6px">${arrivalChip({ id: order.id, arrival: S.arrival?.t, completion: S.completion?.t, started: sum.done + sum.needsDate > 0 }, Date.now())}</div>
+      <div style="margin-top:6px">${arrivalChip({ id: order.id, priority: S.priority, arrival: S.arrival?.t, completion: S.completion?.t, started: sum.done + sum.needsDate > 0 }, Date.now())}</div>
       <div class="chips">
         <span class="chip st-ok">OK ${sum.ok}</span><span class="chip st-under">Vajaa ${sum.under}</span><span class="chip st-over">Yli ${sum.over}</span>
         <span class="chip st-none">Ei tullut ${sum.none}</span><span class="chip st-date">Puuttuu pvm ${sum.needsDate}</span><span class="chip st-pending">Odottaa ${sum.pending}</span></div>

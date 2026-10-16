@@ -12,7 +12,7 @@ import { loginHtml, doLogin } from "../../lib/auth-ui.js";
 import { $ } from "../../lib/ui.js";
 import { WORKERS } from "../../config/workers.js";
 import { parseMaster, eanMatches, boxKey } from "../hyllytys/domain.js";
-import { parseOrderWorkbook, buildRec, lineKey, lineStatus, buildXml, xmlFileName, splitToCarts, placement } from "./domain.js";
+import { parseOrderWorkbook, buildRec, summarize, lineKey, lineStatus, buildXml, xmlFileName, splitToCarts, placement } from "./domain.js";
 import { startView, orderView, deviationRows } from "./views.js";
 
 const GCS_CSV = "https://storage.googleapis.com/olo-export-data/hyllytys-app-export000000000000.csv";
@@ -22,6 +22,8 @@ const app = $("app");
 
 let store, user = null, camera = null;
 let currentWorker = loadJson("wms_worker", "");
+let autoShip = loadJson("wms_vastaanotto_autoship", true); // tilauksen valmistuttua kärryt siirtyvät automaattisesti hyllytykseen
+let completing = false;
 let autoVoice = loadJson("wms_vastaanotto_autovoice", false); // puhe käynnistyy itsestään skannauksen jälkeen
 let recent = [];
 let unsub = null;
@@ -30,13 +32,13 @@ let renderTimer = null;
 
 let S = {
   phase: "start", order: null, recs: {}, tab: "lines", filter: "open", selectedKey: null, error: null, result: null, loading: null,
-  master: null, masterError: null, masterLoading: false, voiceCandidate: null, voiceText: null, draft: { key: null, qty: null, end: null }, drafts: {}, shelvingSentAt: null, xmlAt: null,
+  master: null, masterError: null, masterLoading: false, voiceCandidate: null, voiceText: null, draft: { key: null, qty: null, end: null }, drafts: {}, shelvingSentAt: null, xmlAt: null, arrival: null, completion: null,
 };
 
 /* ───────── Render (säilyttää kentän fokuksen) ───────── */
 function viewModel() {
   return {
-    S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice,
+    S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice, autoShip,
     camOk: cameraSupported(), camOn: !!camera?.running, dirOk: typeof window.showDirectoryPicker === "function",
     xmlName: S.order ? xmlFileName(S.order.supplier, S.order.orderDate) : "",
   };
@@ -89,7 +91,12 @@ async function loadRecent() {
       id, supplier: o.meta?.supplier?.name || id, date: o.meta?.orderDate ? formatYmd(o.meta.orderDate) : "",
       total: Object.keys(o.lines || {}).length, done: Object.values(o.rec || {}).filter(isLineDone).length, xmlAt: o.xmlAt || null,
       sort: o.meta?.orderDate || "", loadedAt: o.meta?.loadedAt || 0,
-    })).sort((a, b) => b.loadedAt - a.loadedAt).slice(0, 12);
+      arrival: o.arrival?.t || null, completion: o.completion?.t || null, started: Object.keys(o.rec || {}).length > 0,
+    }));
+    // Järjestys purun priorisointia varten: saapuneet purkua odottamassa (vanhin ensin), kesken, ei vielä saapunut, valmiit
+    const grp = (o) => (o.completion ? 3 : o.started ? 1 : o.arrival ? 0 : 2);
+    recent.sort((a, b) => grp(a) - grp(b) || (grp(a) === 0 ? a.arrival - b.arrival : grp(a) === 3 ? b.completion - a.completion : b.loadedAt - a.loadedAt));
+    recent = recent.slice(0, 20);
   } catch { recent = []; }
 }
 
@@ -107,6 +114,8 @@ function openOrder(id) {
     if (firstLoad) restoreDrafts(id);
     S.shelvingSentAt = val.shelving?.t || null;
     S.xmlAt = val.xmlAt || null;
+    S.arrival = val.arrival || null;
+    S.completion = val.completion || null;
     if (S.phase !== "order") S.phase = "order";
     scheduleRender();
     // Hyllypaikat tarvitaan heti, jotta sovellus voi kertoa skannattaessa mihin kärryyn tuote laitetaan
@@ -159,6 +168,7 @@ function addBatch(key, qty, end) {
 function setBatchEnd(key, id, end) {
   localRec(key, (raw) => { if (raw.b[id]) raw.b[id].end = end; });
   store.set(`${recPath(key)}/b/${id}/end`, end);
+  checkCompletion();
 }
 
 function removeBatch(key, id) {
@@ -217,7 +227,27 @@ function finishLine(key, what = "") {
     selectedKey: null, voiceCandidate: null, error: null,
     result: { type: "ok", text: `✓ ${l.name}${what ? " " + what : ""}${sum}${p ? " → " + p.label + (p.aisle ? " (levy " + p.aisle + ")" : "") : ""}` },
   });
+  checkCompletion();
   return true;
+}
+
+// Kun kaikki tilauksen rivit on käsitelty: merkitään tilaus valmiiksi ja (valinnan mukaan) siirretään tuotteet ja kärryt automaattisesti hyllytykseen.
+async function checkCompletion() {
+  if (!S.order || S.completion || completing) return;
+  const sum = summarize(S.order.lines, S.recs);
+  if (sum.pending + sum.needsDate > 0) return;
+  completing = true;
+  try {
+    S.completion = { t: Date.now(), by: currentWorker };
+    await store.set(`vastaanotto/${S.order.id}/completion`, S.completion);
+    if (autoShip) await toShelving({ auto: true });
+  } finally { completing = false; }
+}
+
+async function markArrived(id) {
+  if (!currentWorker) { setState({ error: "Valitse ensin käyttäjä" }); return; }
+  await store.set(`vastaanotto/${id}/arrival`, { t: Date.now(), by: currentWorker });
+  if (S.phase !== "order") { await loadRecent(); scheduleRender(); }
 }
 
 // Kirjaa luonnoksen (määrä + päiväys) uudeksi laatikkoeräksi
@@ -343,11 +373,12 @@ async function loadMaster() {
   setState({ masterLoading: false, masterError: `Hyllypaikkoja ei saatu ladattua (${gcsErr})` });
 }
 
-async function toShelving() {
-  if (!S.master) { await loadMaster(); if (!S.master) return; }
-  const { items } = splitToCarts(S.order.lines, S.recs, S.master);
-  if (!items.length) { setState({ error: "Ei saapuneita tuotteita vietäväksi" }); return; }
-  if (!confirm(`Viedäänkö ${items.length} tuotetta hyllytykseen? Ne ilmestyvät Hyllytyksen kärryihin.`)) return;
+async function toShelving(opts = {}) {
+  const auto = !!opts.auto;
+  if (!S.master) { await loadMaster(); if (!S.master) { if (auto) setState({ error: "Tilaus on valmis, mutta hyllypaikkoja ei saatu ladattua: paina Kärryt → Siirrä hyllytykseen" }); return; } }
+  const { items, groups } = splitToCarts(S.order.lines, S.recs, S.master);
+  if (!items.length) { setState({ error: auto ? null : "Ei saapuneita tuotteita vietäväksi", ...(auto ? { result: { type: "ok", text: "✓ Tilaus valmis (ei saapuneita tuotteita hyllytettäväksi)" } } : {}) }); return; }
+  if (!auto && !confirm(`Viedäänkö ${items.length} tuotetta hyllytykseen? Ne ilmestyvät Hyllytyksen kärryihin.`)) return;
   const sscc = `TT-${S.order.id}`;
   const box = {
     sscc, by: "vastaanotto", t: Date.now(),
@@ -355,6 +386,14 @@ async function toShelving() {
   };
   await store.set(`sessions/${todayKey()}/scannedBoxes/${boxKey(sscc)}`, box);
   await store.set(`vastaanotto/${S.order.id}/shelving`, { t: Date.now() });
+  if (auto) {
+    // Suljetaan kärryerät, joihin tämän tilauksen tuotteita tuli: kärryt ovat heti valittavissa Hyllytyksessä ("Kärry valmis → Hyllytykseen")
+    const t = Math.max(Date.now(), box.t + 1);
+    const carts = groups.filter((g) => g.kind === "cart" && g.items.length);
+    await Promise.all(carts.map((g) => store.set(`sessions/${todayKey()}/cartBatches/${g.id}/${t.toString(36)}${g.id}`, { by: "vastaanotto", t })));
+    setState({ error: null, result: { type: "ok", text: `✓ Tilaus valmis: ${items.length} tuotetta siirretty hyllytykseen${carts.length ? ", kärryt " + carts.map((g) => g.name).join(", ") + " valittavissa Hyllytyksessä" : ""}.` } });
+    return;
+  }
   setState({ error: null, result: { type: "ok", text: `✓ ${items.length} tuotetta viety hyllytykseen. Avaa Hyllytys → Lataa tiedot ja paina kärryn kohdalla "Kärry valmis → Hyllytykseen".` } });
 }
 
@@ -419,7 +458,9 @@ const actions = {
   "stop-voice": () => { stopVoice(); scheduleRender(); },
   "toggle-cam": toggleCamera,
   "load-master": loadMaster,
-  "to-shelving": toShelving,
+  "to-shelving": () => toShelving(),
+  "mark-arrived": (d) => markArrived(d.id),
+  "clear-arrived": async (d) => { if (confirm("Poistetaanko saapumismerkintä?")) { await store.remove(`vastaanotto/${d.id}/arrival`); if (S.phase !== "order") { await loadRecent(); scheduleRender(); } } },
   "dl-xml": () => {
     const open = S.order.lines.filter((l) => ["pending", "needsDate"].includes(lineStatus(l, S.recs[l.key]))).length;
     if (open && !confirm(`${open} riviä on kesken ja menee XML:ään määrällä 0. Ladataanko silti?`)) return;
@@ -442,6 +483,7 @@ app.addEventListener("click", (e) => {
 app.addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.change === "worker") { currentWorker = t.value; saveJson("wms_worker", currentWorker); return; }
+  if (t.dataset.change === "auto-ship") { autoShip = t.checked; saveJson("wms_vastaanotto_autoship", autoShip); return; }
   if (t.dataset.change === "auto-voice") { autoVoice = t.checked; saveJson("wms_vastaanotto_autovoice", autoVoice); if (!autoVoice) stopVoice(); scheduleRender(); return; }
   if (t.id === "qty-input") {
     const n = parseInt(t.value, 10);

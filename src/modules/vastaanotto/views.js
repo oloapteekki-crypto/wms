@@ -11,6 +11,15 @@ const STATUS = {
   over: { label: "Yli", cls: "st-over" },
   none: { label: "Ei tullut", cls: "st-none" },
 };
+// Kesto luettavaksi ("2 h 10 min"); saapumis- ja valmistumisleimat tilauslistaan ja tilausnäkymään
+export const fmtDur = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+const fmtWhen = (t) => new Date(t).toLocaleString("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+function arrivalChip(o, now) {
+  if (o.completion) return `<span class="chip st-ok">✓ Purettu ${esc(fmtWhen(o.completion))}</span>${o.arrival ? ` <span class="muted small">odotti ${fmtDur(o.completion - o.arrival)}</span>` : ""}`;
+  if (o.arrival) return `<span class="chip st-date">📦 Saapunut ${esc(fmtWhen(o.arrival))}</span> <span class="small" style="font-weight:600">${o.started ? "purku kesken" : "odottaa purkua " + fmtDur(now - o.arrival)}</span>
+    <button class="linkbtn small muted" data-action="clear-arrived" data-id="${esc(o.id)}" aria-label="Poista saapumismerkintä">✕</button>`;
+  return `<button class="btn-sm btn-outline" style="margin-top:6px;padding:6px 10px;font-size:12px" data-action="mark-arrived" data-id="${esc(o.id)}">📦 Merkitse saapuneeksi varastolle</button>`;
+}
 const result = (r) => (r ? `<div class="scan-result ${r.type === "ok" ? "scan-ok" : "scan-fail"}">${esc(r.text)}</div>` : "");
 const err = (e) => (e ? `<div class="error">${esc(e)}</div>` : "");
 
@@ -31,7 +40,8 @@ export function startView(v) {
     ${recent.length ? `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div>${recent.map((o) => `
       <div class="order-row" data-action="open-order" data-id="${esc(o.id)}">
         <div><b>${esc(o.supplier)}</b> <span class="muted">${esc(o.date)}</span>${o.done === 0 ? ` <span class="chip st-date">Uusi</span>` : ""}</div>
-        <div class="muted">${o.done}/${o.total} riviä${o.xmlAt ? " • XML tehty" : ""}</div></div>`).join("")}</div>`
+        <div class="muted">${o.done}/${o.total} riviä${o.xmlAt ? " • XML tehty" : ""}</div>
+        <div>${arrivalChip(o, Date.now())}</div></div>`).join("")}</div>`
       : `<div class="card"><div class="flex justify-between items-center"><h2>Tilaukset</h2><button class="btn-sm btn-outline" data-action="refresh-recent">↻ Päivitä</button></div><div class="muted small">Ei tallennettuja tilauksia. Lähetä tilaus Sheetsistä (WMS-valikko) tai lataa .xlsx yllä.</div></div>`}`;
 }
 
@@ -114,11 +124,13 @@ export function orderView(v) {
       <div class="muted small">Tilaus ${esc(formatYmd(order.orderDate))} • ${sum.total} riviä • ${sum.orderedUnits} kpl tilattu${order.updatedAt ? ` • tilausta päivitetty Sheetsistä ${new Date(order.updatedAt).toLocaleString("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}</div></div>
       <div class="big-pct">${sum.done}/${sum.total}</div></div>
       <div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div style="margin-top:6px">${arrivalChip({ id: order.id, arrival: S.arrival?.t, completion: S.completion?.t, started: sum.done + sum.needsDate > 0 }, Date.now())}</div>
       <div class="chips">
         <span class="chip st-ok">OK ${sum.ok}</span><span class="chip st-under">Vajaa ${sum.under}</span><span class="chip st-over">Yli ${sum.over}</span>
         <span class="chip st-none">Ei tullut ${sum.none}</span><span class="chip st-date">Puuttuu pvm ${sum.needsDate}</span><span class="chip st-pending">Odottaa ${sum.pending}</span></div>
       <div class="scanrow"><input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa tuotteen EAN" autocomplete="off">
         ${v.camOk ? `<button class="cam-btn${v.camOn ? " on" : ""}" data-action="toggle-cam">📷</button>` : ""}</div>
+      <label class="small muted" style="display:block"><input type="checkbox" data-change="auto-ship" ${v.autoShip ? "checked" : ""}> Siirrä kärryt automaattisesti hyllytykseen, kun tilaus on valmis</label>
       <label class="small muted"><input type="checkbox" data-change="auto-voice" ${v.autoVoice ? "checked" : ""}> 🎤 Puhekuittaus käynnistyy skannauksen jälkeen</label>
       ${result(S.result)}${err(S.error)}
       ${S.masterError ? `<div class="error">⚠ Kärrytieto ei näy: ${esc(S.masterError)} <button class="btn-sm btn-outline" data-action="load-master">Yritä uudelleen</button></div>` : ""}</div>

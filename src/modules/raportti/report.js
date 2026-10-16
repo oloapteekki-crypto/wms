@@ -154,3 +154,57 @@ export function summarizeTransfers(transfers, now = Date.now()) {
     recent: recent.sort((a, b) => b.t - a.t).slice(0, 12),
   };
 }
+/* ───────── Vastaanotto (toimittajatilaukset) ───────── */
+// orders: vastaanotto = {tilaus: {meta, lines, rec: {rivi: {b: {erä: {qty,end,t,by}}, none?, t?, by?}}, arrival: {t,by}, completion: {t,by}}}
+// Odotus = saapumisesta purun alkuun (tai nykyhetkeen, jos purku ei ole alkanut). Kesto = purun alusta valmistumiseen.
+// Työaika = peräkkäisten kirjausten välit, jotka ovat enintään 10 min (tauot eivät kasva työajaksi).
+const dayOf = (t) => new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date(t));
+const WORK_GAP_MS = 10 * 60 * 1000;
+
+export function summarizeReceiving(orders, date, now = Date.now()) {
+  const rows = [];
+  for (const [id, o] of Object.entries(orders || {})) {
+    if (!o?.meta) continue;
+    const times = [];
+    const workers = {};
+    let received = 0;
+    for (const r of values(o.rec)) {
+      for (const b of values(r.b)) { if (b.t) { times.push(b.t); workers[b.by || "(ei valittu)"] = (workers[b.by || "(ei valittu)"] || 0) + 1; } received += Number(b.qty) || 0; }
+      if (r.none && r.t) { times.push(r.t); workers[r.by || "(ei valittu)"] = (workers[r.by || "(ei valittu)"] || 0) + 1; }
+    }
+    times.sort((a, b) => a - b);
+    const arrival = o.arrival?.t || null;
+    const completion = o.completion?.t || null;
+    const started = times[0] || null;
+    const last = times[times.length - 1] || null;
+    const days = [arrival, started, completion, last].filter(Boolean).map(dayOf);
+    const open = !completion; // keskeneräinen näkyy aina kuluvana päivänä
+    const isToday = date === dayOf(now);
+    if (!days.includes(date) && !(isToday && open && (arrival || started))) continue;
+    let work = 0;
+    for (let i = 1; i < times.length; i++) if (times[i] - times[i - 1] <= WORK_GAP_MS) work += times[i] - times[i - 1];
+    const lines = Object.values(o.lines || {});
+    rows.push({
+      id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "",
+      status: completion ? "done" : started ? "progress" : "waiting",
+      lines: lines.length, ordered: sum(lines, (l) => l.ordered), received,
+      arrival, started, completion,
+      waitMs: arrival ? (started ? started - arrival : now - arrival) : null,
+      durationMs: started ? (completion || now) - started : null,
+      workMs: started ? work : null,
+      workers: Object.entries(workers).sort((a, b) => b[1] - a[1]).map(([w]) => w),
+    });
+  }
+  const order = { waiting: 0, progress: 1, done: 2 };
+  rows.sort((a, b) => order[a.status] - order[b.status] || (a.status === "waiting" ? (a.arrival || 0) - (b.arrival || 0) : (b.completion || b.started || 0) - (a.completion || a.started || 0)));
+  const done = rows.filter((r) => r.status === "done");
+  const avg = (arr) => (arr.length ? arr.reduce((s, x) => s + x, 0) / arr.length : null);
+  const waiting = rows.filter((r) => r.status === "waiting" && r.arrival);
+  return {
+    rows, doneCount: done.length, waitingCount: waiting.length, progressCount: rows.filter((r) => r.status === "progress").length,
+    longestWaitMs: waiting.length ? Math.max(...waiting.map((r) => r.waitMs)) : null,
+    avgDurationMs: avg(done.map((r) => r.durationMs).filter((x) => x !== null)),
+    avgWorkMs: avg(done.map((r) => r.workMs).filter((x) => x !== null)),
+    avgWaitMs: avg(rows.filter((r) => r.started && r.arrival).map((r) => r.waitMs)),
+  };
+}

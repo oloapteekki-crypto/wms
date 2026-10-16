@@ -4,12 +4,13 @@ import { createStore, todayKey } from "../../lib/store/index.js";
 import { loginHtml, doLogin } from "../../lib/auth-ui.js";
 import { esc, $ } from "../../lib/ui.js";
 import {
-  summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, summarizeTransfers, fmtDuration, timeOf,
+  summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, summarizeTransfers, summarizeReceiving, fmtDuration, timeOf,
 } from "./report.js";
 
 const app = $("app");
 let store, user = null;
 let date = todayKey();
+let receiving = {};
 let session = null, scanLog = null, counted = {}, products = {}, dismissed = {}, invMeta = null;
 let authError = null;
 let unsubs = [];
@@ -63,7 +64,8 @@ function render() {
   const active = activeNow(session, now);
   const inv = summarizeInventory(counted, products, dismissed, date);
   const transfers = summarizeTransfers(session?.siirrot, now);
-  const hasData = shelving.batchCount + shelving.interruptedCount + log.events + unload.boxes + inv.countedToday + transfers.total > 0;
+  const recv = summarizeReceiving(receiving, date, now);
+  const hasData = shelving.batchCount + shelving.interruptedCount + log.events + unload.boxes + inv.countedToday + transfers.total + recv.rows.length > 0;
   const isToday = date === todayKey();
 
   const closed = Object.entries(unload.closedBatches).map(([c, n]) => `${esc(c)}: ${n}`).join(", ") || "–";
@@ -112,6 +114,19 @@ function render() {
       ${inv.byWorker.length ? `<table><thead><tr><th>Työntekijä</th><th class="r">Tuotteita</th></tr></thead><tbody>${inv.byWorker.map((w) => `<tr><td>${esc(w.worker)}</td><td class="r">${w.n}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei inventointeja</div>`}
       <div class="small"><a href="../inventointi/erot.html">Avaa erolista →</a></div></div>
 
+    <h2>Toimittajatilausten vastaanotto</h2>
+    <div class="tiles">
+      ${tile("Valmiita tilauksia", recv.doneCount, `${recv.progressCount} kesken`)}
+      ${tile("Odottaa purkua", recv.waitingCount, recv.longestWaitMs !== null ? `pisin ${fmtDuration(recv.longestWaitMs)}` : "ei odottavia")}
+      ${tile("Keskim. purkuaika", recv.avgDurationMs !== null ? fmtDuration(recv.avgDurationMs) : "–", "aloituksesta valmistumiseen")}
+      ${tile("Keskim. työaika", recv.avgWorkMs !== null ? fmtDuration(recv.avgWorkMs) : "–", "ilman taukoja (yli 10 min)")}
+      ${tile("Keskim. odotus", recv.avgWaitMs !== null ? fmtDuration(recv.avgWaitMs) : "–", "saapumisesta purun alkuun")}
+    </div>
+    <div class="card"><h3>Tilaukset</h3>
+      ${recv.rows.length ? `<table><thead><tr><th>Toimittaja</th><th>Tila</th><th>Saapui</th><th>Purku alkoi</th><th>Valmis</th><th class="r">Odotus</th><th class="r">Kesto</th><th class="r">Työaika</th><th class="r">Kpl</th><th>Purkajat</th></tr></thead><tbody>
+        ${recv.rows.map((x) => `<tr><td>${esc(x.supplier)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? timeOf(x.arrival) : "–"}</td><td>${x.started ? timeOf(x.started) : "–"}</td><td>${x.completion ? timeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td></tr>`).join("")}</tbody></table>
+        <div class="small muted">Saapumisaika merkitään Vastaanotossa painikkeella "Merkitse saapuneeksi varastolle". Odotus = saapumisesta purun alkuun, kesto = purun alusta valmistumiseen, työaika ilman yli 10 min taukoja.</div>` : `<div class="empty">Ei vastaanotettuja tilauksia tälle päivälle</div>`}</div>
+
     <h2>Siirrot</h2>
     <div class="tiles">
       ${tile("Hyllytetty uusille paikoille", transfers.placed, "siirtoa valmiina")}
@@ -144,6 +159,7 @@ function subscribeDay() {
   session = null; scanLog = null;
   unsubs.push(store.subscribe(`sessions/${date}`, (v) => { session = v; scheduleRender(); }));
   unsubs.push(store.subscribe(`scanLog/${date}`, (v) => { scanLog = v; scheduleRender(); }));
+  unsubs.push(store.subscribe("vastaanotto", (v) => { receiving = v || {}; scheduleRender(); }));
 }
 
 function subscribeInventory() {

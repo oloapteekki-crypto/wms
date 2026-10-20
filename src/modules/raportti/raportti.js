@@ -12,6 +12,12 @@ const app = $("app");
 let store, user = null;
 let date = todayKey();
 let receiving = {};
+const openOrders = new Set(); // tilaukset, joiden tilatut tuotteet on avattu
+
+const orderLink = (x) => `<a href="#" class="olink" data-action="toggle-order" data-id="${esc(x.id)}">${esc(x.supplier)}</a>`;
+const itemsRow = (x, cols) => (openOrders.has(x.id)
+  ? `<tr class="items"><td colspan="${cols}"><table><thead><tr><th>Tuote</th><th>SKU</th><th>EAN</th><th class="r">Tilattu</th></tr></thead><tbody>${(x.items || []).map((l) => `<tr><td>${esc(l.name)}</td><td class="mono">${esc(l.sku)}</td><td class="mono">${esc(l.ean)}</td><td class="r">${l.ordered}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">Ei rivejä</td></tr>`}</tbody></table></td></tr>`
+  : "");
 let session = null, scanLog = null, counted = {}, products = {}, dismissed = {}, invMeta = null;
 let authError = null;
 let unsubs = [];
@@ -127,12 +133,12 @@ function render() {
     </div>
     <div class="card"><h3>Tilaukset</h3>
       ${recv.rows.length ? `<table><thead><tr><th>Toimittaja</th><th>Tila</th><th>Saapui</th><th>Purku alkoi</th><th>Valmis</th><th class="r">Odotus</th><th class="r">Kesto</th><th class="r">Työaika</th><th class="r">Kpl</th><th>Purkajat</th><th>Prioriteetti</th></tr></thead><tbody>
-        ${recv.rows.map((x) => `<tr class="${x.priority && x.status !== "done" ? "prio" : ""}"><td>${esc(x.supplier)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? dateTimeOf(x.arrival) : "–"}</td><td>${x.started ? dateTimeOf(x.started) : "–"}</td><td>${x.completion ? dateTimeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td><td>${x.status === "done" ? "" : x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>`).join("")}</tbody></table>
+        ${recv.rows.map((x) => `<tr class="${x.priority && x.status !== "done" ? "prio" : ""}"><td>${orderLink(x)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? dateTimeOf(x.arrival) : "–"}</td><td>${x.started ? dateTimeOf(x.started) : "–"}</td><td>${x.completion ? dateTimeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td><td>${x.status === "done" ? "" : x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>${itemsRow(x, 11)}`).join("")}</tbody></table>
         <div class="small muted">Saapumisaika merkitään Vastaanotossa painikkeella "Merkitse saapuneeksi varastolle". Odotus = saapumisesta purun alkuun, kesto = purun alusta valmistumiseen, työaika ilman yli 10 min taukoja.</div>` : `<div class="empty">Ei vastaanotettuja tilauksia tälle päivälle</div>`}</div>
 
     <div class="card"><h3>Tilatut, ei vielä saapuneet (${notArr.count})</h3>
       ${notArr.rows.length ? `<table><thead><tr><th>Toimittaja</th><th>Tilauspäivä</th><th>Lähetetty WMS:ään</th><th class="r">Lähetyksestä</th><th class="r">Rivejä</th><th>Prioriteetti</th></tr></thead><tbody>
-        ${notArr.rows.map((x) => `<tr class="${x.priority ? "prio" : ""}"><td>${esc(x.supplier)}</td><td>${esc(x.orderDate.replace(/^(\d{4})(\d{2})(\d{2})$/, "$3.$2.$1"))}</td><td>${x.sent ? dateTimeOf(x.sent) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.lines}</td><td>${x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>`).join("")}</tbody></table>
+        ${notArr.rows.map((x) => `<tr class="${x.priority ? "prio" : ""}"><td>${orderLink(x)}</td><td>${esc(x.orderDate.replace(/^(\d{4})(\d{2})(\d{2})$/, "$3.$2.$1"))}</td><td>${x.sent ? dateTimeOf(x.sent) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.lines}</td><td>${x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>${itemsRow(x, 6)}`).join("")}</tbody></table>
         <div class="small muted">Tilaukset, jotka on lähetetty WMS:ään mutta joita ei ole merkitty saapuneeksi varastolle. "Lähetyksestä" = kulunut aika.</div>` : `<div class="empty">Kaikki lähetetyt tilaukset on merkitty saapuneiksi</div>`}</div>
 
     <h2>Siirrot</h2>
@@ -180,6 +186,14 @@ function subscribeInventory() {
 
 /* ───────── Tapahtumat ───────── */
 app.addEventListener("click", async (e) => {
+  const tog = e.target.closest("[data-action=toggle-order]");
+  if (tog) {
+    e.preventDefault();
+    const id = tog.dataset.id;
+    if (openOrders.has(id)) openOrders.delete(id); else openOrders.add(id);
+    render();
+    return;
+  }
   const pr = e.target.closest("[data-action=prio-on],[data-action=prio-off]");
   if (pr) {
     const id = pr.dataset.id;

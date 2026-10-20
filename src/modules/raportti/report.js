@@ -167,6 +167,10 @@ export function summarizeTransfers(transfers, now = Date.now()) {
 const dayOf = (t) => new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date(t));
 const WORK_GAP_MS = 10 * 60 * 1000;
 
+const itemsOf = (o) => Object.values(o.lines || {})
+  .sort((a, b) => (a.n || 0) - (b.n || 0))
+  .map((l) => ({ name: l.name || "", sku: l.sku || "", ean: l.ean || "", ordered: Number(l.ordered) || 0 }));
+
 // Tilatut, ei vielä saapuneet: WMS:ään lähetetty tilaus, jota ei ole merkitty saapuneeksi eikä jonka purkua ole aloitettu (kaikilta päiviltä).
 export function summarizeNotArrived(orders, now = Date.now()) {
   const rows = [];
@@ -175,7 +179,7 @@ export function summarizeNotArrived(orders, now = Date.now()) {
     const lines = Object.values(o.lines || {});
     const sent = o.meta.loadedAt || null;
     rows.push({
-      id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "",
+      id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "", items: itemsOf(o),
       sent, waitMs: sent ? now - sent : null,
       lines: lines.length, ordered: sum(lines, (l) => l.ordered), priority: o.priority || null,
     });
@@ -212,7 +216,7 @@ export function summarizeReceiving(orders, date, now = Date.now()) {
     for (let i = 1; i < times.length; i++) if (times[i] - times[i - 1] <= WORK_GAP_MS) work += times[i] - times[i - 1];
     const lines = Object.values(o.lines || {});
     rows.push({
-      id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "",
+      id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "", items: itemsOf(o),
       status: completion ? "done" : started ? "progress" : "waiting",
       lines: lines.length, ordered: sum(lines, (l) => l.ordered), received,
       arrival, started, completion, priority: o.priority || null,

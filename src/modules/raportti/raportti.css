@@ -46,3 +46,7 @@ tr.stale td{color:var(--bad)}
 .mb-12{margin-bottom:12px}
 .error{color:#c0392b;font-size:13px;text-align:center;margin-top:6px}
 tr.prio td{background:#fef2f2}
+
+a.olink { color: var(--green, #288264); text-decoration: underline dotted; cursor: pointer; }
+tr.items > td { background: #f4f9f7; padding: 6px 12px; }
+tr.items table { margin: 0; }

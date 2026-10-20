@@ -218,7 +218,7 @@ export function summarizeReceiving(orders, date, now = Date.now()) {
     rows.push({
       id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "", items: itemsOf(o),
       status: completion ? "done" : started ? "progress" : "waiting",
-      lines: lines.length, ordered: sum(lines, (l) => l.ordered), received,
+      lines: lines.length, linesDone: lineKeys.filter(lineDone).length, ordered: sum(lines, (l) => l.ordered), received,
       arrival, started, completion, priority: o.priority || null,
       waitMs: arrival ? (started ? started - arrival : now - arrival) : null,
       durationMs: started ? (completion || now) - started : null,

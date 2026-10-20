@@ -10,6 +10,9 @@ const hourFmt = new Intl.DateTimeFormat("fi-FI", { hour: "numeric", hourCycle: "
 const timeFmt = new Intl.DateTimeFormat("fi-FI", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 export const hourOf = (t) => Number(hourFmt.format(new Date(t)));
 export const timeOf = (t) => (t ? timeFmt.format(new Date(t)) : "");
+// Päivämäärä ja kellonaika ("20.10. klo 07.16"): käytetään taulukoissa, joiden tapahtumat voivat olla eri päiviltä
+const dtFmt = new Intl.DateTimeFormat("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", timeZone: TZ });
+export const dateTimeOf = (t) => (t ? dtFmt.format(new Date(t)) : "");
 
 export function fmtDuration(ms) {
   const s = Math.round((ms || 0) / 1000);
@@ -86,7 +89,10 @@ export function summarizeUnloading(session) {
 export function activeNow(session, now) {
   const progress = session?.progress || {};
   const rows = [];
+  // Valmis suoritustietue (Lopeta → Raportti) = erä on hyllytetty loppuun, vaikka kärryn lukitus jäisi voimaan
+  const finished = new Set(values(session?.performance).filter((e) => !e.partial).map((e) => `${e.cart}_${e.batch}`));
   for (const [key, lock] of Object.entries(session?.cartsTaken || {})) {
+    if (finished.has(key)) continue;
     const cart = key.split("_")[0];
     const prog = progress[`${key}_progress`];
     const lastT = Math.max(lock.t || 0, prog?.t || 0);
@@ -174,9 +180,13 @@ export function summarizeReceiving(orders, date, now = Date.now()) {
     }
     times.sort((a, b) => a - b);
     const arrival = o.arrival?.t || null;
-    const completion = o.completion?.t || null;
     const started = times[0] || null;
     const last = times[times.length - 1] || null;
+    // Valmis = valmistumismerkintä TAI kaikki rivit käsitelty (vanhoilla tilauksilla ei ole merkintää)
+    const lineKeys = Object.keys(o.lines || {});
+    const lineDone = (k) => { const r = (o.rec || {})[k]; if (!r) return false; if (r.none) return true; const b = values(r.b); return b.length > 0 && b.every((x) => x.end !== undefined); };
+    const allDone = lineKeys.length > 0 && lineKeys.every(lineDone);
+    const completion = o.completion?.t || (allDone ? last : null);
     const days = [arrival, started, completion, last].filter(Boolean).map(dayOf);
     const open = !completion; // keskeneräinen näkyy aina kuluvana päivänä
     const isToday = date === dayOf(now);

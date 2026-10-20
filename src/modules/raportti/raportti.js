@@ -5,7 +5,7 @@ import { loginHtml, doLogin } from "../../lib/auth-ui.js";
 import { esc, $ } from "../../lib/ui.js";
 import { loadJson, saveJson } from "../../lib/storage.js";
 import {
-  summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, summarizeTransfers, summarizeReceiving, fmtDuration, timeOf,
+  summarizeShelving, summarizeScanLog, summarizeUnloading, activeNow, summarizeInventory, summarizeTransfers, summarizeReceiving, fmtDuration, timeOf, dateTimeOf,
 } from "./report.js";
 
 const app = $("app");
@@ -64,6 +64,7 @@ function render() {
   const unload = summarizeUnloading(session);
   const active = activeNow(session, now);
   const inv = summarizeInventory(counted, products, dismissed, date);
+  const nowStamp = new Intl.DateTimeFormat("fi-FI", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Helsinki" }).format(new Date(now));
   const transfers = summarizeTransfers(session?.siirrot, now);
   const recv = summarizeReceiving(receiving, date, now);
   const hasData = shelving.batchCount + shelving.interruptedCount + log.events + unload.boxes + inv.countedToday + transfers.total + recv.rows.length > 0;
@@ -73,7 +74,7 @@ function render() {
 
   app.innerHTML = `
     <a class="back" href="../../../index.html">← WMS</a>
-    <div class="head"><div><h1>📊 Raportti</h1><div class="sub">${isToday ? '<span class="live"></span>Päivittyy reaaliajassa' : "Valittu päivä (ei kuluva)"}</div></div>
+    <div class="head"><div><h1>📊 Raportti</h1><div class="sub">${isToday ? '<span class="live"></span>Päivittyy reaaliajassa' : "Valittu päivä (ei kuluva)"} · päivitetty ${esc(nowStamp)}</div></div>
       <label class="datepick">Päivä <input type="date" id="date" value="${esc(date)}"></label></div>
     ${store.kind === "local" ? `<div class="mode-banner">⚠ Paikallinen tila: näkyy vain tämän laitteen data.</div>` : ""}
 
@@ -101,8 +102,8 @@ function render() {
         ${shelving.byWorker.map((w) => `<tr><td>${esc(w.worker)}${w.interrupted ? ` <span class="chip">${w.interrupted} kesk.</span>` : ""}</td><td class="r">${w.batches}</td><td class="r">${w.shelved}</td><td class="r">${w.expected}</td><td class="r">${fmtDuration(w.ms)}</td><td class="r">${num(w.rate)}</td><td class="r">${pct(w.accuracy)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei hyllytyksiä</div>`}</div>
 
     <div class="card"><h3>Hyllytyserät</h3>
-      ${shelving.batches.length ? `<table><thead><tr><th>Klo</th><th>Työntekijä</th><th>Kärry</th><th class="r">Hyllytetty</th><th class="r">Aika</th><th class="r">Kpl/min</th></tr></thead><tbody>
-        ${shelving.batches.map((b) => `<tr><td>${timeOf(b.end)}</td><td>${esc(b.worker)}</td><td>${esc(b.cartName || b.cart)}</td><td class="r ${b.shelved < b.expected ? "short" : ""}">${b.shelved} / ${b.expected}</td><td class="r">${fmtDuration(b.elapsed)}</td><td class="r">${num(b.rate)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei valmiita eriä</div>`}</div>
+      ${shelving.batches.length ? `<table><thead><tr><th>Aika</th><th>Työntekijä</th><th>Kärry</th><th class="r">Hyllytetty</th><th class="r">Aika</th><th class="r">Kpl/min</th></tr></thead><tbody>
+        ${shelving.batches.map((b) => `<tr><td>${dateTimeOf(b.end)}</td><td>${esc(b.worker)}</td><td>${esc(b.cartName || b.cart)}</td><td class="r ${b.shelved < b.expected ? "short" : ""}">${b.shelved} / ${b.expected}</td><td class="r">${fmtDuration(b.elapsed)}</td><td class="r">${num(b.rate)}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei valmiita eriä</div>`}</div>
 
     <h2>Inventointi</h2>
     <div class="tiles">
@@ -125,7 +126,7 @@ function render() {
     </div>
     <div class="card"><h3>Tilaukset</h3>
       ${recv.rows.length ? `<table><thead><tr><th>Toimittaja</th><th>Tila</th><th>Saapui</th><th>Purku alkoi</th><th>Valmis</th><th class="r">Odotus</th><th class="r">Kesto</th><th class="r">Työaika</th><th class="r">Kpl</th><th>Purkajat</th><th>Prioriteetti</th></tr></thead><tbody>
-        ${recv.rows.map((x) => `<tr class="${x.priority && x.status !== "done" ? "prio" : ""}"><td>${esc(x.supplier)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? timeOf(x.arrival) : "–"}</td><td>${x.started ? timeOf(x.started) : "–"}</td><td>${x.completion ? timeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td><td>${x.status === "done" ? "" : x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>`).join("")}</tbody></table>
+        ${recv.rows.map((x) => `<tr class="${x.priority && x.status !== "done" ? "prio" : ""}"><td>${esc(x.supplier)}</td><td>${x.status === "done" ? "valmis" : x.status === "progress" ? "kesken" : `<span class="chip">odottaa</span>`}</td><td>${x.arrival ? dateTimeOf(x.arrival) : "–"}</td><td>${x.started ? dateTimeOf(x.started) : "–"}</td><td>${x.completion ? dateTimeOf(x.completion) : "–"}</td><td class="r">${x.waitMs !== null ? fmtDuration(x.waitMs) : "–"}</td><td class="r">${x.durationMs !== null ? fmtDuration(x.durationMs) : "–"}</td><td class="r">${x.workMs !== null ? fmtDuration(x.workMs) : "–"}</td><td class="r">${x.received} / ${x.ordered}</td><td>${esc(x.workers.join(", "))}</td><td>${x.status === "done" ? "" : x.priority ? `<span class="chip">⚡ ${esc(x.priority.by || "")}</span> <button class="btn-sm" data-action="prio-off" data-id="${esc(x.id)}">Poista</button>` : `<button class="btn-sm" data-action="prio-on" data-id="${esc(x.id)}">⚡ Nosta</button>`}</td></tr>`).join("")}</tbody></table>
         <div class="small muted">Saapumisaika merkitään Vastaanotossa painikkeella "Merkitse saapuneeksi varastolle". Odotus = saapumisesta purun alkuun, kesto = purun alusta valmistumiseen, työaika ilman yli 10 min taukoja.</div>` : `<div class="empty">Ei vastaanotettuja tilauksia tälle päivälle</div>`}</div>
 
     <h2>Siirrot</h2>
@@ -138,12 +139,12 @@ function render() {
     <div class="card"><h3>Siirtäjät</h3>
       ${transfers.byWorker.length ? `<table><thead><tr><th>Työntekijä</th><th class="r">Hyllytetty</th><th class="r">Kerätty</th><th class="r">Varattu</th><th class="r">Ohitettu</th></tr></thead><tbody>
         ${transfers.byWorker.map((w) => `<tr><td>${esc(w.worker)}</td><td class="r">${w.placed}</td><td class="r">${w.picked}</td><td class="r">${w.claimed}</td><td class="r">${w.skipped}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei siirtoja</div>`}
-      ${transfers.recent.length ? `<h3 style="margin-top:12px">Viimeisimmät siirrot</h3><table><thead><tr><th>Klo</th><th>Työntekijä</th><th>Tuote</th><th>Mistä</th><th>Mihin</th><th>Tila</th></tr></thead><tbody>
-        ${transfers.recent.map((e) => `<tr><td>${timeOf(e.t)}</td><td>${esc(e.worker)}</td><td class="mono">${esc(e.sku)}</td><td class="mono">${esc(e.from)}</td><td class="mono">${esc(e.to)}</td><td>${e.state === "placed" ? "hyllytetty" : "kerätty"}</td></tr>`).join("")}</tbody></table>` : ""}</div>
+      ${transfers.recent.length ? `<h3 style="margin-top:12px">Viimeisimmät siirrot</h3><table><thead><tr><th>Aika</th><th>Työntekijä</th><th>Tuote</th><th>Mistä</th><th>Mihin</th><th>Tila</th></tr></thead><tbody>
+        ${transfers.recent.map((e) => `<tr><td>${dateTimeOf(e.t)}</td><td>${esc(e.worker)}</td><td class="mono">${esc(e.sku)}</td><td class="mono">${esc(e.from)}</td><td class="mono">${esc(e.to)}</td><td>${e.state === "placed" ? "hyllytetty" : "kerätty"}</td></tr>`).join("")}</tbody></table>` : ""}</div>
 
     <div class="card"><h3>Viimeisimmät hyllytykset</h3>
-      ${log.recent.length ? `<table><thead><tr><th>Klo</th><th>Työntekijä</th><th>Tuote</th><th>Paikka</th><th class="r">+</th><th class="r">Yht.</th></tr></thead><tbody>
-        ${log.recent.map((e) => `<tr><td>${timeOf(e.t)}</td><td>${esc(e.worker)}</td><td>${esc(e.name)}</td><td class="mono">${esc(e.location)}</td><td class="r">${e.added > 0 ? "+" : ""}${e.added}</td><td class="r">${e.total}/${e.expected}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei tapahtumia</div>`}</div>
+      ${log.recent.length ? `<table><thead><tr><th>Aika</th><th>Työntekijä</th><th>Tuote</th><th>Paikka</th><th class="r">+</th><th class="r">Yht.</th></tr></thead><tbody>
+        ${log.recent.map((e) => `<tr><td>${dateTimeOf(e.t)}</td><td>${esc(e.worker)}</td><td>${esc(e.name)}</td><td class="mono">${esc(e.location)}</td><td class="r">${e.added > 0 ? "+" : ""}${e.added}</td><td class="r">${e.total}/${e.expected}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">Ei tapahtumia</div>`}</div>
     ${hasData ? "" : `<div class="card empty">Ei dataa valitulle päivälle.</div>`}
     <div class="small muted foot">Dimensiot tallentaa vain laitteelle, joten se ei näy raportissa.</div>
     <div id="tip" class="tip" hidden></div>`;

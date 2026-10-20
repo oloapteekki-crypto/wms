@@ -167,6 +167,23 @@ export function summarizeTransfers(transfers, now = Date.now()) {
 const dayOf = (t) => new Intl.DateTimeFormat("sv-SE", { timeZone: TZ }).format(new Date(t));
 const WORK_GAP_MS = 10 * 60 * 1000;
 
+// Tilatut, ei vielä saapuneet: WMS:ään lähetetty tilaus, jota ei ole merkitty saapuneeksi eikä jonka purkua ole aloitettu (kaikilta päiviltä).
+export function summarizeNotArrived(orders, now = Date.now()) {
+  const rows = [];
+  for (const [id, o] of Object.entries(orders || {})) {
+    if (!o?.meta || o.arrival?.t || o.completion?.t || values(o.rec).length) continue;
+    const lines = Object.values(o.lines || {});
+    const sent = o.meta.loadedAt || null;
+    rows.push({
+      id, supplier: o.meta.supplier?.name || id, orderDate: o.meta.orderDate || "",
+      sent, waitMs: sent ? now - sent : null,
+      lines: lines.length, ordered: sum(lines, (l) => l.ordered), priority: o.priority || null,
+    });
+  }
+  rows.sort((a, b) => (a.sent || 0) - (b.sent || 0));
+  return { rows, count: rows.length, longestMs: rows.length && rows[0].waitMs !== null ? rows[0].waitMs : null };
+}
+
 export function summarizeReceiving(orders, date, now = Date.now()) {
   const rows = [];
   for (const [id, o] of Object.entries(orders || {})) {

@@ -2,7 +2,7 @@
 // Toiminnot kytketään data-action-attribuuteilla (ks. hyllytys.js).
 import { esc } from "../../lib/ui.js";
 import {
-  CARTS, routeIndex, enrichItem, batchList, batchItems, batchRemaining, allScannedEnriched,
+  CARTS, PLATES, routeIndex, enrichItem, batchList, batchItems, batchRemaining, allScannedEnriched,
   totals, buildReport,
 } from "./domain.js";
 
@@ -35,7 +35,7 @@ function groupHtml(g, { detailed }) {
     html += detailed
       ? `<div style="margin-bottom:10px;padding:10px 12px;border-radius:8px;border-left:4px solid ${color};background:#fafbfc">
           <div style="font-size:13px;font-weight:700;margin-bottom:6px">${cart ? cart.icon : ""} ${esc(shelf)}</div>
-          ${g.byShelf[shelf].map((i) => `<div style="padding:3px 0;font-size:12px"><div class="flex justify-between"><span>${esc(i.name)}</span><span style="font-weight:700;white-space:nowrap;margin-left:8px">${i.qty} kpl</span></div><div class="mono" style="color:#94a3b8">${esc(i.location || "—")}${eanText(i)}</div></div>`).join("")}
+          ${g.byShelf[shelf].map((i) => `<div style="padding:3px 0;font-size:12px"><div class="flex justify-between"><span>${esc(i.name)}</span><span style="font-weight:700;white-space:nowrap;margin-left:8px">${i.plate ? `levy ${i.plate} · ` : ""}${i.qty} kpl</span></div><div class="mono" style="color:#94a3b8">${esc(i.location || "—")}${eanText(i)}</div></div>`).join("")}
         </div>`
       : `<div style="margin:4px 0;padding:6px 8px;border-radius:6px;border-left:3px solid ${color};background:#fafbfc">
           <div style="font-size:11px;font-weight:700;margin-bottom:2px">${cart ? cart.icon : ""} ${esc(shelf)}</div>
@@ -83,6 +83,9 @@ export function setupView(v) {
         <p style="font-size:12px;color:#64748b;margin-bottom:12px">Valitse tiedostot tietokoneelta. Muut laitteet hakevat ne automaattisesti.</p>
         <div class="mb-8"><label class="label">Tuoterekisteri (CSV)</label><input type="file" id="csv-upload" accept=".csv" style="font-size:14px;width:100%"></div>
         <div class="mb-8"><label class="label">Toimitusilmoitukset (XML) — valitse kaikki</label><input type="file" id="xml-upload" accept=".xml,.XML" multiple style="font-size:14px;width:100%"></div>
+        <div class="mb-8"><label class="label">Inventointitapahtumat (MAXX, CSV) — laskettavat tuotteet</label><input type="file" id="inv-upload" accept=".csv,.CSV" style="font-size:14px;width:100%">
+          <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:#475569">Lasketaan tuotteet, joiden tappio on vähintään <input id="inv-threshold" type="number" min="1" value="100" style="width:70px;padding:4px;border:1px solid #cbd5e1;border-radius:6px"> €</div>
+          <p style="font-size:11px;color:#94a3b8;margin-top:4px">${S.shrinkMeta ? `Nyt käytössä: ${S.shrinkMeta.count} tuotetta (tappio ≥ ${S.shrinkMeta.threshold} €${S.shrinkMeta.period ? ", " + esc(S.shrinkMeta.period) : ""}). Muut hyllytetään ilman laskentaa.` : "Ei listaa: kaikki tuotteet lasketaan. Lataa MAXX:n Inventointitapahtumat-raportti, jolloin lasketaan vain suuren hävikin tuotteet."}</p></div>
         <button class="btn" style="background:#1e40af" data-action="upload" ${S.loadProgress ? "disabled" : ""}>${esc(S.loadProgress || "Lataa tietokantaan")}</button>
         <p style="font-size:11px;color:#94a3b8;margin-top:8px">CSV:n voi ladata erikseen — vanhat XML:t korvataan uusilla</p>
       </div>
@@ -112,8 +115,9 @@ export function scanView(v) {
       <div class="mono" style="color:#64748b;margin-bottom:8px">EAN ${esc(pl.ean)} | VNR ${esc(pl.sku)}</div>
       <div style="padding:10px;border-radius:8px;background:#f8fafc">
         <div style="font-size:14px;font-weight:700;margin-bottom:4px">${pl.cart ? esc(pl.cart.icon + " " + pl.cart.name) : pl.pa === "RX" ? "💊 Reseptilääke" : pl.pa === "JK" ? "❄️ Jääkaappi" : "📦 UUSI-hyllyyn"}</div>
-        ${pl.pa && pl.pa !== "RX" && pl.pa !== "JK" ? `<div style="font-size:13px;color:#475569">Levy: <b>${esc(pl.pa)}</b></div>` : ""}
+        ${pl.plate ? `<div style="font-size:18px;font-weight:800;color:#1e293b">Levy ${pl.plate}</div>` : ""}
         <div style="font-size:13px;color:#475569">Paikka: <b>${esc(pl.location)}</b></div>
+        ${pl.counted === false ? `<div style="font-size:13px;color:#64748b;margin-top:4px">Ei laskentaa — hyllytetään koko määrä</div>` : `<div style="font-size:13px;color:#b91c1c;margin-top:4px;font-weight:700">🔢 Laske kappaleet</div>`}
         ${pl.qty > 0 ? `<div style="font-size:13px;color:#475569;margin-top:4px">Skannatuissa laatikoissa: <b>${pl.qty} kpl</b></div>` : ""}
       </div></div>` : "";
 
@@ -201,7 +205,8 @@ export function cartSelectView(v) {
         const selectable = !isCurrent && remaining > 0;
         cards += `<div class="cart-card" style="border-color:${c.color}${selectable ? "" : ";opacity:.4;cursor:not-allowed"}" ${selectable ? `data-action="select-cart" data-cart="${c.id}" data-batch="${esc(batch.id)}"` : ""}>
           <div style="font-size:24px;margin-bottom:4px">${c.icon}</div>${head}
-          <div style="font-size:13px;color:#64748b;margin:4px 0">Levyt: ${esc(c.shelves.join(", "))}</div>${cnt}
+          <div style="font-size:13px;color:#64748b;margin:4px 0">${esc(c.desc)}</div>
+          <details style="font-size:12px;color:#64748b;margin-bottom:4px"><summary>Levyt 1–5</summary>${(PLATES[c.id] || []).map((p, i) => `<div>Levy ${i + 1}: ${esc(p.label)}</div>`).join("")}</details>${cnt}
           ${isCurrent ? `<div style="font-size:11px;color:#3b82f6">⏳ Täyttyy — paina purussa "Kärry valmis"</div>` : ""}</div>`;
       }
     }
@@ -238,28 +243,40 @@ export function shelveView(v) {
   const sec = elapsedSec % 60;
   const vnr = esc(cur.vnr);
 
-  return `
-    <div class="mb-12"><div class="flex justify-between items-center mb-6"><div>${cart ? esc(cart.icon) : ""} <b>${cart ? esc(cart.name) : ""} #${S.selectedBatch?.num ?? ""}</b></div>
-      <span style="font-size:12px;color:#94a3b8">${ts}/${tq} (${pct}%)</span></div>
-      ${currentWorker ? `<div style="font-size:12px;color:#64748b;margin-bottom:4px">👤 ${esc(currentWorker)} — ⏱ <span id="clock">${min}:${pad2(sec)}${paused ? " — ⏸ TAUKO" : ""}</span></div>` : ""}
-      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>
-
-    <div class="card" style="border-left:4px solid ${cart?.color || "#64748b"}">
-      <div style="font-size:12px;color:#94a3b8;margin-bottom:8px;text-align:right">${S.currentIdx + 1}/${S.routeItems.length}</div>
-      ${cur.parsedLoc ? `<div class="flex items-center gap-8 mb-6"><span class="${badgeCls(cur.parsedLoc.aisle)}">${esc(cur.parsedLoc.aisle)}</span><span class="location-big">${esc(cur.location)}</span></div>` : ""}
-      <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(cur.name)}</div>
-      <div class="mono" style="color:#64748b;margin-bottom:10px">VNR ${vnr}${eanText(cur)}</div>
-      ${expiryNotice(cur)}
+  const uncounted = cur.counted === false;
+  // Varastopaikka näkyy aina ruudun yläreunassa (sticky), vaikka sisältöä vieritettäisiin.
+  const locHtml = cur.parsedLoc
+    ? `<span class="${badgeCls(cur.parsedLoc.aisle)}">${esc(cur.parsedLoc.aisle)}</span> <span class="location-big">${esc(cur.location)}</span>`
+    : `<span class="location-big">📦 UUSI-hyllyyn</span>`;
+  const counter = uncounted
+    ? `<div style="margin-bottom:10px;font-size:13px;color:#64748b">Ei laskentaa: hyllytä koko määrä <b>${cur.qty} kpl</b></div>
+      <button class="btn" style="background:${done ? "#16a34a" : "#288264"};padding:18px 0;font-size:18px" data-action="shelve-all">${done ? "✓ Hyllytetty — seuraava" : `✓ Hyllytetty (${cur.qty} kpl)`}</button>`
+    : `<div style="display:inline-block;margin-bottom:8px;padding:3px 10px;border-radius:999px;background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;font-size:12px;font-weight:700">🔢 LASKE KAPPALEET — suuri hävikki</div>
       <div class="qty-display" style="background:${done ? "#f0fdf4" : "#f8fafc"};border:2px solid ${done ? "#86efac" : "#e2e8f0"}">
         <span style="font-size:36px;font-weight:800;color:${done ? "#16a34a" : "#1e293b"}">${cc}</span><span style="font-size:22px;color:#94a3b8"> / </span>
         <span style="font-size:36px;font-weight:800;color:#64748b">${cur.qty}</span>${done ? `<span style="font-size:24px;margin-left:8px">✓</span>` : ""}</div>
       <div class="qty-adj">
         <button class="qty-btn" style="color:#dc2626;border-color:#fca5a5" data-action="adjust" data-vnr="${vnr}" data-delta="-1">−</button>
         <input type="number" class="qty-manual" id="qty-manual" value="${cc}" min="0" data-change="qty-manual" data-vnr="${vnr}">
-        <button class="qty-btn" style="color:#16a34a;border-color:#86efac" data-action="adjust" data-vnr="${vnr}" data-delta="1">+</button></div></div>
+        <button class="qty-btn" style="color:#16a34a;border-color:#86efac" data-action="adjust" data-vnr="${vnr}" data-delta="1">+</button></div>`;
+
+  return `
+    <div class="sticky-loc" style="border-bottom-color:${cart?.color || "#64748b"}">
+      <div class="flex justify-between items-center" style="font-size:12px;color:#475569;margin-bottom:2px"><span>${cart ? esc(cart.icon) : ""} <b>${cart ? esc(cart.name) : ""} #${S.selectedBatch?.num ?? ""}</b> — ${ts}/${tq} (${pct}%)</span><span>${S.currentIdx + 1}/${S.routeItems.length}</span></div>
+      <div class="flex items-center gap-8">${locHtml}${cur.plate ? `<span style="margin-left:auto;padding:4px 12px;border-radius:10px;background:${cart?.color || "#64748b"};color:#fff;font-size:18px;font-weight:800;white-space:nowrap">Levy ${cur.plate}</span>` : ""}</div></div>
+    <div class="mb-12">
+      ${currentWorker ? `<div style="font-size:12px;color:#64748b;margin-bottom:4px">👤 ${esc(currentWorker)} — ⏱ <span id="clock">${min}:${pad2(sec)}${paused ? " — ⏸ TAUKO" : ""}</span></div>` : ""}
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>
+
+    <div class="card" style="border-left:4px solid ${cart?.color || "#64748b"}">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(cur.name)}</div>
+      <div class="mono" style="color:#64748b;margin-bottom:10px">VNR ${vnr}${eanText(cur)}</div>
+      ${expiryNotice(cur)}
+      ${counter}</div>
 
     <div class="card">
-      ${!locOk ? `<div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">1. Skannaa paikka: <b>${esc(cur.location)}</b></div>`
+      ${uncounted ? `<div style="font-size:13px;font-weight:600;color:#475569;margin-bottom:8px">Vie tuote paikkaan <b>${esc(cur.location || "UUSI")}</b> ja paina Hyllytetty tai skannaa EAN</div>`
+        : !locOk ? `<div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">1. Skannaa paikka: <b>${esc(cur.location)}</b></div>`
         : `<div style="font-size:13px;font-weight:600;color:#16a34a;margin-bottom:8px">✓ ${esc(cur.location)} — 2. Skannaa EAN</div>`}
       ${result(S.lastScanResult)}${err(S.error)}</div>
 

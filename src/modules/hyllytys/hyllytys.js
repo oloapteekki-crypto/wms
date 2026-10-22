@@ -10,8 +10,8 @@ import { fetchCsvText } from "../../lib/csv.js";
 import { $ } from "../../lib/ui.js";
 import { WORKERS } from "../../config/workers.js";
 import {
-  CARTS, parseLoc, physicalAisle, cartOfAisle, sortRoute, parseMaster, parseXml, mergeParsed, decodeXmlBuffer,
-  enrichItem, eanMatches, boxKey, findBox, batchList, batchItems, totals,
+  CARTS, parseLoc, physicalAisle, cartOfLoc, plateOf, sortRoute, parseMaster, parseXml, mergeParsed, decodeXmlBuffer,
+  enrichItem, eanMatches, boxKey, findBox, batchList, batchItems, totals, isCounted, parseShrinkCsv, SHRINK_THRESHOLD_EUR,
 } from "./domain.js";
 import { loginView, setupView, scanView, cartSelectView, shelveView, reportView } from "./views.js";
 
@@ -33,6 +33,7 @@ const initialState = () => ({
   phase: "setup", xmlBoxes: null, boxAltKeys: null, master: null, error: null, lastScanResult: null, loadProgress: null,
   selectedCart: null, selectedBatch: null, routeItems: [], shelved: {}, currentIdx: 0, confirmedLoc: null,
   activeBox: null, productLookup: null, shelveStartTime: null, pausedTime: 0, pauseStart: null,
+  shrink: null, shrinkMeta: null, // laskettavat tuotteet (suuri hävikki): {tuotenro: tappio €}; null = lasketaan kaikki
 });
 let S = initialState();
 
@@ -47,7 +48,7 @@ function persist() {
   if (S.phase === "setup") return;
   const keep = ["phase", "selectedCart", "selectedBatch", "routeItems", "shelved", "currentIdx", "confirmedLoc", "shelveStartTime", "pausedTime"];
   const o = Object.fromEntries(keep.map((k) => [k, S[k]]));
-  if (S.phase === "scan" || S.phase === "cartSelect") { o.xmlBoxes = S.xmlBoxes; o.boxAltKeys = S.boxAltKeys; o.master = S.master; }
+  if (S.phase === "scan" || S.phase === "cartSelect") { o.xmlBoxes = S.xmlBoxes; o.boxAltKeys = S.boxAltKeys; o.master = S.master; o.shrink = S.shrink; o.shrinkMeta = S.shrinkMeta; }
   try { sessionStorage.setItem(KEY_STATE, JSON.stringify({ day, ...o })); } catch { /* täynnä */ }
 }
 
@@ -92,7 +93,7 @@ function render() {
     case "shelve":
       if (!S.routeItems[S.currentIdx]) { finishShelving(true); return; }
       app.innerHTML = shelveView(v);
-      setPlaceholder(isLocConfirmed() ? "Skannaa EAN" : "Skannaa paikka");
+      setPlaceholder(S.routeItems[S.currentIdx].counted === false ? "Skannaa EAN tai paina Hyllytetty" : isLocConfirmed() ? "Skannaa EAN" : "Skannaa paikka");
       showScan();
       break;
     case "report": hideScan(); app.innerHTML = reportView(v); break;
@@ -274,17 +275,30 @@ async function loadData() {
     const xml = await store.get("files/xml");
     const parsed = xml ? Object.values(xml).map(parseXml) : [];
     const { boxes, altKeys } = parsed.length ? mergeParsed(parsed) : { boxes: {}, altKeys: {} };
+    const shrink = await store.get("files/shrink");
     subscribeSession();
-    setState({ xmlBoxes: boxes, boxAltKeys: altKeys, master, phase: "scan", loadProgress: null });
+    setState({
+      xmlBoxes: boxes, boxAltKeys: altKeys, master, phase: "scan", loadProgress: null,
+      shrink: shrink?.skus || null, shrinkMeta: shrink ? { count: shrink.count, threshold: shrink.threshold, period: shrink.period, updated: shrink.updated } : null,
+    });
   } catch (e) { setState({ error: e.message, loadProgress: null }); }
 }
 
 async function uploadFiles() {
   const csv = $("csv-upload").files;
   const xml = $("xml-upload").files;
-  if (!csv.length && !xml.length) { setState({ error: "Valitse vähintään yksi tiedosto" }); return; }
+  const inv = $("inv-upload").files;
+  if (!csv.length && !xml.length && !inv.length) { setState({ error: "Valitse vähintään yksi tiedosto" }); return; }
   setState({ error: null, loadProgress: "Ladataan..." });
   try {
+    if (inv.length) {
+      const threshold = parseFloat(($("inv-threshold").value || "").replace(",", ".")) || SHRINK_THRESHOLD_EUR;
+      const r = parseShrinkCsv(await inv[0].arrayBuffer(), threshold);
+      if (!r.events) throw new Error("Inventointitapahtumia ei löytynyt tiedostosta (odotettu MAXX:n Inventointitapahtumat-raportti, CSV)");
+      await store.set("files/shrink", { skus: r.skus, count: r.count, threshold: r.threshold, period: r.period, events: r.events, updated: Date.now(), name: inv[0].name });
+      S.shrink = r.skus;
+      S.shrinkMeta = { count: r.count, threshold: r.threshold, period: r.period, updated: Date.now() };
+    }
     if (csv.length) {
       setState({ loadProgress: "Ladataan tuoterekisteriä..." });
       await store.update("files", { csv: await csv[0].text(), csvUpdated: Date.now(), csvName: csv[0].name });
@@ -298,7 +312,7 @@ async function uploadFiles() {
       }
       await store.set("files/xmlUpdated", Date.now());
     }
-    setState({ loadProgress: null, error: null, lastScanResult: { type: "ok", text: "✓ Tiedostot ladattu!" } });
+    setState({ loadProgress: null, error: null, lastScanResult: { type: "ok", text: inv.length ? `✓ Ladattu! Laskettavia tuotteita ${S.shrinkMeta.count} kpl (tappio ≥ ${S.shrinkMeta.threshold} €)` : "✓ Tiedostot ladattu!" } });
   } catch (e) { setState({ error: "Latausvirhe: " + e.message, loadProgress: null }); }
 }
 
@@ -352,11 +366,13 @@ function lookupEan(ean) {
     const pa = pl ? physicalAisle(pl) : null;
     let qty = 0;
     for (const b of Object.values(fb.scannedBoxes)) for (const i of b.items || []) if (i.ean === found.ean || i.vnr === found.sku) qty += i.qty;
-    info = { name: found.name, ean: found.ean, sku: found.sku, location: found.location || "—", pl, pa, cartId: pa ? cartOfAisle(pa) : null, qty };
+    info = { name: found.name, ean: found.ean, sku: found.sku, location: found.location || "—", pl, pa, cartId: pa ? cartOfLoc(pl, pa) : null, qty };
   }
+  info.counted = isCounted({ vnr: info.sku }, S.shrink);
+  info.plate = info.cartId && info.pl && info.pa ? plateOf(info.cartId, info.pl, info.pa) : null;
   const cart = info.cartId ? CARTS.find((c) => c.id === info.cartId) : null;
   let text = cart ? `${cart.icon} ${cart.name}` : "";
-  if (info.pa && info.pa !== "RX" && info.pa !== "JK") text += ` — levy ${info.pa}`;
+  if (info.plate) text += ` — levy ${info.plate}`;
   if (info.pl?.type === "rx") text = "💊 Reseptilääke";
   if (info.pl?.type === "cold") text = "❄️ Jääkaappi";
   if (!info.pl) text = "📦 UUSI-hyllyyn";
@@ -370,7 +386,7 @@ function lookupEan(ean) {
   }
   setState({
     lastScanResult: { type: "ok", text }, error: null, activeBox: nextBox,
-    productLookup: { name: info.name, ean: info.ean, sku: info.sku, location: info.location, cart, pa: info.pa, qty: info.qty },
+    productLookup: { name: info.name, ean: info.ean, sku: info.sku, location: info.location, cart, pa: info.pa, qty: info.qty, counted: info.counted, plate: info.plate },
   });
 }
 
@@ -381,7 +397,7 @@ function selectCart(cartId, batchId) {
   const batch = list.find((b) => b.id === batchId) || list[list.length - 1];
   const prev = fb.shelved[`${cartId}_${batch.id}`] || {};
   const remaining = batchItems(fb.scannedBoxes, batch, cartId, S.master)
-    .map((i) => ({ ...i, qty: i.qty - (prev[i.vnr] || 0) }))
+    .map((i) => ({ ...i, qty: i.qty - (prev[i.vnr] || 0), counted: isCounted(i, S.shrink) }))
     .filter((i) => i.qty > 0);
 
   const progress = fb.progress[`${cartId}_${batch.id}_progress`];
@@ -424,10 +440,31 @@ function addOne(item, idx) {
   else startListening(item.vnr, item.qty);
 }
 
+// Ei-laskettava tuote (ei suurta hävikkiä): koko määrä hyllytetään yhdellä vahvistuksella, määrä oletetaan XML:n mukaiseksi.
+function shelveAll() {
+  const item = S.routeItems[S.currentIdx];
+  if (!item || S.pauseStart) return;
+  stopListening();
+  const p = S.shelved[item.vnr] || 0;
+  if (p >= item.qty) { autoAdvance(); return; }
+  undoStack.push({ vnr: item.vnr, prev: p, idx: S.currentIdx, name: item.name });
+  S.shelved[item.vnr] = item.qty;
+  logShelveEvent(item.vnr, item, item.qty - p, item.qty, item.qty, "uncounted");
+  setState({ shelved: S.shelved, lastScanResult: { type: "ok", text: `✓ ${item.qty} kpl hyllytetty` } });
+  syncProgress();
+  setTimeout(autoAdvance, 400);
+}
+
 function confirmEan(code) {
   if (!code || S.pauseStart) return;
   stopListening();
   setState({ error: null, lastScanResult: null });
+  const cur0 = S.routeItems[S.currentIdx];
+  if (cur0 && cur0.counted === false) {
+    if (eanMatches(cur0.ean, code)) shelveAll();
+    else setState({ error: "EAN ei täsmää — skannaa oikea tuote tai paina Hyllytetty" });
+    return;
+  }
   if (!S.confirmedLoc) { setState({ error: "Skannaa paikka ensin" }); return; }
   const cur = S.routeItems[S.currentIdx];
   if (cur && eanMatches(cur.ean, code)) { addOne(cur, S.currentIdx); return; }
@@ -526,7 +563,12 @@ function processScan(val) {
     if (known || code.length >= 15) addBox(code);
     else lookupEan(code);
   } else if (S.phase === "shelve") {
-    if (!isLocConfirmed()) confirmLocation(code);
+    const cur = S.routeItems[S.currentIdx];
+    if (cur && cur.counted === false) {
+      // Ei-laskettava: paikan skannaus vaihtaa kohdetta, EAN hyllyttää koko määrän
+      const asLoc = S.routeItems.some((i) => i.location && i.location.trim().toUpperCase() === code.toUpperCase());
+      if (asLoc) confirmLocation(code); else confirmEan(code);
+    } else if (!isLocConfirmed()) confirmLocation(code);
     else confirmEan(code);
   }
 }
@@ -550,6 +592,7 @@ const actions = {
   "reset-day": resetDay,
   "release-cart": (d) => { if (confirm("Vapauta kärry? Toisen laitteen hyllytys keskeytyy.")) { store.remove(sessionPath(`cartsTaken/${d.cart}_${d.batch}`)); } },
   "select-cart": (d) => selectCart(d.cart, d.batch),
+  "shelve-all": shelveAll,
   adjust: (d) => setQty(d.vnr, Math.max(0, (S.shelved[d.vnr] || 0) + parseInt(d.delta, 10))),
   nav: (d) => navTo(S.currentIdx + parseInt(d.delta, 10)),
   undo,
@@ -565,6 +608,7 @@ const changes = {
 };
 
 app.addEventListener("click", (e) => {
+  if (e.target.closest("summary")) return; // avattavat osiot (esim. kärryn levyt) eivät käynnistä kärryn valintaa
   const el = e.target.closest("[data-action]");
   if (el && actions[el.dataset.action]) actions[el.dataset.action](el.dataset, el);
 });

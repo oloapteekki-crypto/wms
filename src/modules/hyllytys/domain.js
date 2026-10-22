@@ -3,15 +3,87 @@
 import { parseCsvObjects, pick } from "../../lib/csv.js";
 
 /* ───────── Kärryt ───────── */
+// L-alueella 1 kärry, A- ja B-alueilla 2 kärryä, jotka voivat olla hyllytyksessä yhtä aikaa. Jako seuraa reittiä (ks. ROUTE), jolloin
+// kärryn 1 reitti päättyy siihen, mihin kärryn 2 alkaa, ja hyllylevyt tyhjenevät serpentiinissä järjestyksessä.
+// Rajat on laskettu tuoterekisterin paikkamääristä (n. 3 370 tuotetta A-alueella, n. 2 300 + 2 300 B-alueella):
+//   A-kärry 1: A2, A3 ja A4 hyllyt 15–26 · A-kärry 2: A4 hyllyt 1–14, A5, A6/A1 ja A7
+//   B-kärry 1: B1, B2 ja B3 hyllyt 0–16 · B-kärry 2: B3 hyllyt 17–26, B4 ja UU
+// Rajan siirto: muuta SPLITS-riviä (alin hyllynumero, joka kuuluu reitin loppupään kärrylle).
 export const CARTS = [
-  { id: "L", name: "L-kärry", color: "#ef4444", icon: "🔴", aisles: ["L1", "FA", "L2", "L3"], shelves: ["L1", "L2", "L3", "FA"] },
-  { id: "A", name: "A-kärry", color: "#10b981", icon: "🟢", aisles: ["A2", "A3", "A4", "A5", "A6_even", "A6odd_A1even", "A1odd_A7"], shelves: ["A1+A6", "A2", "A3", "A4", "A5"] },
-  { id: "B", name: "B-kärry", color: "#3b82f6", icon: "🔵", aisles: ["B1", "B2", "B3", "B4", "UU"], shelves: ["B1", "B2", "B3", "B4", "UU"] },
+  { id: "L", name: "L-kärry", color: "#ef4444", icon: "🔴", aisles: ["L1", "FA", "L2", "L3"], desc: "L1, FA, L2, L3" },
+  { id: "A1", name: "A-kärry 1", color: "#10b981", icon: "🟢", aisles: ["A2", "A3", "A4"], desc: "A2, A3, A4 (hyllyt 15–26)" },
+  { id: "A2", name: "A-kärry 2", color: "#0d9488", icon: "🟩", aisles: ["A4", "A5", "A6_even", "A6odd_A1even", "A1odd_A7"], desc: "A4 (hyllyt 1–14), A5, A6/A1, A7" },
+  { id: "B1", name: "B-kärry 1", color: "#3b82f6", icon: "🔵", aisles: ["B1", "B2", "B3"], desc: "B1, B2, B3 (hyllyt 0–16)" },
+  { id: "B2", name: "B-kärry 2", color: "#6366f1", icon: "🟣", aisles: ["B3", "B4", "UU"], desc: "B3 (hyllyt 17–26), B4, UU" },
 ];
 
-export function cartOfAisle(physAisle) {
-  const c = CARTS.find((x) => x.aisles.includes(physAisle));
-  return c ? c.id : null;
+// Jaettu käytävä: shelf >= from → reitin loppupään kärry (late), muuten alkupään (early).
+const SPLITS = { A4: { from: 15, early: "A2", late: "A1" }, B3: { from: 17, early: "B1", late: "B2" } };
+const CART_BY_AISLE = {
+  L1: "L", FA: "L", L2: "L", L3: "L",
+  A2: "A1", A3: "A1", A5: "A2", A6_even: "A2", A6odd_A1even: "A2", A1odd_A7: "A2",
+  B1: "B1", B2: "B1", B4: "B2", UU: "B2",
+};
+
+// Levyt: jokaisessa kärryssä 5 levyä, jotka seuraavat reittiä (levy 1 ensin). Levyn alkukohta on (fyysinen käytävä, hyllynumero);
+// levy 1 alkaa kärryn reitin alusta. Rajat laskettu tuoterekisterin paikkamääristä (≈ 250 / 340 / 460 tuotetta per levy L / A / B).
+// from = [käytävä, hylly], label = levyn sisältö. Rajan siirto: muuta from-arvoa ja label-tekstiä.
+export const PLATES = {
+  L: [
+    { label: "L1, FA hylly 1" },
+    { from: ["FA", 2], label: "FA hyllyt 2–3" },
+    { from: ["FA", 4], label: "FA hyllyt 4–5" },
+    { from: ["FA", 6], label: "FA hyllyt 6–7, L2 hyllyt 10–6" },
+    { from: ["L2", 5], label: "L2 hyllyt 5–1, L3" },
+  ],
+  A1: [
+    { label: "A2 hyllyt 26–16" },
+    { from: ["A2", 15], label: "A2 hyllyt 15–3" },
+    { from: ["A2", 2], label: "A2 hyllyt 2–1, A3 hyllyt 0–15" },
+    { from: ["A3", 16], label: "A3 hyllyt 16–26" },
+    { from: ["A4", 26], label: "A4 hyllyt 26–15" },
+  ],
+  A2: [
+    { label: "A4 hyllyt 14–1, A5 hylly 0" },
+    { from: ["A5", 1], label: "A5 hyllyt 1–19" },
+    { from: ["A5", 20], label: "A5 hyllyt 20–26, A6/A1 hyllyt 0–8" },
+    { from: ["A6odd_A1even", 9], label: "A6/A1 hyllyt 9–25" },
+    { from: ["A6odd_A1even", 26], label: "A6/A1 hylly 26, A1/A7" },
+  ],
+  B1: [
+    { label: "B1 hyllyt 0–11" },
+    { from: ["B1", 12], label: "B1 hyllyt 12–26, B2 hyllyt 26–22" },
+    { from: ["B2", 21], label: "B2 hyllyt 21–11" },
+    { from: ["B2", 10], label: "B2 hyllyt 10–0, B3 hyllyt 0–4" },
+    { from: ["B3", 5], label: "B3 hyllyt 5–16" },
+  ],
+  B2: [
+    { label: "B3 hyllyt 17–26, B4 hyllyt 26–25" },
+    { from: ["B4", 24], label: "B4 hyllyt 24–12" },
+    { from: ["B4", 11], label: "B4 hyllyt 11–0" },
+    { from: ["UU", 1], label: "UU hylly 1" },
+    { from: ["UU", 3], label: "UU hylly 3" },
+  ],
+};
+
+// Paikan järjestysluku reitillä (nouseva/laskeva hyllyjärjestys käytävän suunnan mukaan).
+const routePos = (physAisle, shelf) => routeIndex(physAisle) * 1000 + (ROUTE_ASC[physAisle] === 0 ? 999 - shelf : shelf);
+
+// Levyn numero 1–5 kärryn sisällä (null, jos kärrylle ei ole levyjä).
+export function plateOf(cartId, parsedLoc, physAisle) {
+  const plates = PLATES[cartId];
+  if (!plates || !parsedLoc || !physAisle) return null;
+  const pos = routePos(physAisle, parseInt(parsedLoc.shelf, 10) || 0);
+  let plate = 1;
+  plates.forEach((p, i) => { if (p.from && pos >= routePos(p.from[0], p.from[1])) plate = i + 1; });
+  return plate;
+}
+
+// Kärry paikalle (parsedLoc + fyysinen käytävä). Reitin ulkopuoliset (RX, JK, L4/L5, uusi) → null.
+export function cartOfLoc(parsedLoc, physAisle) {
+  const sp = SPLITS[physAisle];
+  if (sp) return (parseInt(parsedLoc?.shelf, 10) || 0) >= sp.from ? sp.late : sp.early;
+  return CART_BY_AISLE[physAisle] || null;
 }
 
 /* ───────── Reitti (asc: 1 = hyllynumerot nousevasti, 0 = laskevasti) ───────── */
@@ -80,6 +152,38 @@ export function physicalAisle(p) {
   if (a === "A1") return odd === false ? "A6odd_A1even" : "A1odd_A7";
   if (a === "A7") return "A1odd_A7";
   return a;
+}
+
+/* ───────── Laskettavat tuotteet (suuri hävikki) ───────── */
+// Tukkutilauksissa lasketaan vain tuotteet, joilla on suuri inventointitappio (MAXX: Inventointitapahtumat-raportti).
+// Muut hyllytetään ilman määrän laskentaa (määrä oletetaan XML:n mukaiseksi). Jos listaa ei ole ladattu, lasketaan kaikki.
+export const SHRINK_THRESHOLD_EUR = 100;
+export const normSku = (s) => String(s ?? "").trim().replace(/^0+/, "");
+
+export function isCounted(item, shrink) {
+  if (!shrink) return true;
+  return !!(shrink[normSku(item.vnr)] || (item.altVnr && shrink[normSku(item.altVnr)]));
+}
+
+// MAXX-raportti (CSV, ; erotin, Windows-1252): rivit "Tuotenimi;;;;Tuotenro;Aika;Määrä;;Inv.ero;;Summa;;Tosite;;Käsitt.".
+// Tappio = tuotteen negatiivisten inventointitapahtumien summa (€). Palauttaa {skus: {tuotenro: tappio €}, ...}.
+export function parseShrinkCsv(buffer, thresholdEur = SHRINK_THRESHOLD_EUR) {
+  const text = new TextDecoder("windows-1252").decode(buffer);
+  const loss = {};
+  let events = 0;
+  let period = "";
+  for (const line of text.split(/\r?\n/)) {
+    const f = line.split(";");
+    if (!period && /^\d+\.\d+\.\d{4}\s*-\s*\d+\.\d+\.\d{4}$/.test((f[3] || "").trim())) period = f[3].trim();
+    if (f.length < 11 || !/^\d+$/.test((f[4] || "").trim()) || !/^\d+\.\d+\.\d{4}$/.test((f[5] || "").trim())) continue;
+    const sum = parseFloat((f[10] || "").replace(/[\s ]/g, "").replace(",", "."));
+    if (Number.isNaN(sum)) continue;
+    events++;
+    if (sum < 0) { const k = normSku(f[4]); loss[k] = (loss[k] || 0) + -sum; }
+  }
+  const skus = {};
+  for (const [k, v] of Object.entries(loss)) if (v >= thresholdEur) skus[k] = Math.round(v);
+  return { skus, count: Object.keys(skus).length, events, products: Object.keys(loss).length, threshold: thresholdEur, period };
 }
 
 /* ───────── Parserit ───────── */
@@ -183,6 +287,7 @@ export function enrichItem(item, master) {
   const locStr = (m.location || "").trim();
   const parsedLoc = parseLoc(locStr);
   const physAisle = parsedLoc ? physicalAisle(parsedLoc) : null;
+  const cartId = physAisle ? cartOfLoc(parsedLoc, physAisle) : null;
   return {
     vnr, altVnr,
     name: item.name || m.name || "?",
@@ -190,7 +295,7 @@ export function enrichItem(item, master) {
     qty: item.qty,
     location: parsedLoc ? locStr : null,
     parsedLoc, physAisle,
-    cartId: physAisle ? cartOfAisle(physAisle) : null,
+    cartId, plate: cartId ? plateOf(cartId, parsedLoc, physAisle) : null,
     exp: item.exp ? mergeExp(Object.values(item.exp), []) : null,
   };
 }

@@ -197,7 +197,7 @@ export function placement(line, master) {
   if (e.parsedLoc?.type === "cold") return { kind: "cold", icon: "❄️", label: "Jääkaappi", color: "#0369a1", location: e.location, aisle: null };
   if (!e.parsedLoc) return { kind: "new", icon: "📦", label: "UUSI-hyllyyn", color: "#f59e0b", location: null, aisle: null };
   const cart = CARTS.find((c) => c.id === e.cartId);
-  if (cart) return { kind: "cart", icon: cart.icon, label: cart.name, color: cart.color, location: e.location, aisle: e.physAisle, cartId: cart.id };
+  if (cart) return { kind: "cart", icon: cart.icon, label: cart.name, color: cart.color, location: e.location, aisle: e.plate ? String(e.plate) : e.physAisle, cartId: cart.id };
   return { kind: "other", icon: "🏗", label: "Lavapaikka / muu paikka", color: "#64748b", location: e.location, aisle: e.physAisle };
 }
 

@@ -27,6 +27,12 @@ function groupItems(items) {
 
 const eanText = (i) => (i.ean && i.ean !== "null" ? " | EAN " + esc(i.ean) : "");
 
+// Kärry ja levy tuotteen vieressä: tieto näkyy myös silloin, kun tuotetta ei voi hakea EAN:lla (esim. EAN ei toimi).
+function cartTag(i) {
+  const c = i.cartId ? CARTS.find((x) => x.id === i.cartId) : null;
+  return c ? `<span style="font-weight:700;color:${c.color}">${c.icon} ${esc(c.name)}${i.plate ? " · levy " + i.plate : ""}</span>` : "";
+}
+
 function groupHtml(g, { detailed }) {
   let html = "";
   for (const shelf of g.shelves) {
@@ -35,11 +41,11 @@ function groupHtml(g, { detailed }) {
     html += detailed
       ? `<div style="margin-bottom:10px;padding:10px 12px;border-radius:8px;border-left:4px solid ${color};background:#fafbfc">
           <div style="font-size:13px;font-weight:700;margin-bottom:6px">${cart ? cart.icon : ""} ${esc(shelf)}</div>
-          ${g.byShelf[shelf].map((i) => `<div style="padding:3px 0;font-size:12px"><div class="flex justify-between"><span>${esc(i.name)}</span><span style="font-weight:700;white-space:nowrap;margin-left:8px">${i.plate ? `levy ${i.plate} · ` : ""}${i.qty} kpl</span></div><div class="mono" style="color:#94a3b8">${esc(i.location || "—")}${eanText(i)}</div></div>`).join("")}
+          ${g.byShelf[shelf].map((i) => `<div style="padding:3px 0;font-size:12px"><div class="flex justify-between"><span>${esc(i.name)}</span><span style="font-weight:700;white-space:nowrap;margin-left:8px">${i.qty} kpl</span></div><div style="font-size:12px">${cartTag(i)}</div><div class="mono" style="color:#94a3b8">${esc(i.location || "—")}${eanText(i)}</div></div>`).join("")}
         </div>`
       : `<div style="margin:4px 0;padding:6px 8px;border-radius:6px;border-left:3px solid ${color};background:#fafbfc">
           <div style="font-size:11px;font-weight:700;margin-bottom:2px">${cart ? cart.icon : ""} ${esc(shelf)}</div>
-          ${g.byShelf[shelf].map((i) => `<div style="font-size:11px;color:#475569;padding:1px 0 1px 8px">${esc(i.name)} <span style="color:#94a3b8">${i.qty} kpl → ${esc(i.location || "?")}${eanText(i)}</span></div>`).join("")}
+          ${g.byShelf[shelf].map((i) => `<div style="font-size:11px;color:#475569;padding:1px 0 1px 8px">${esc(i.name)} <span style="color:#94a3b8">${i.qty} kpl → ${esc(i.location || "?")}${eanText(i)}</span> ${cartTag(i)}</div>`).join("")}
         </div>`;
   }
   if (g.rx.length) {
@@ -250,7 +256,7 @@ export function shelveView(v) {
     : `<span class="location-big">📦 UUSI-hyllyyn</span>`;
   const counter = uncounted
     ? `<div style="margin-bottom:10px;font-size:13px;color:#64748b">Ei laskentaa: hyllytä koko määrä <b>${cur.qty} kpl</b></div>
-      <button class="btn" style="background:${done ? "#16a34a" : "#288264"};padding:18px 0;font-size:18px" data-action="shelve-all">${done ? "✓ Hyllytetty — seuraava" : `✓ Hyllytetty (${cur.qty} kpl)`}</button>`
+      <button class="btn" style="background:${done ? "#16a34a" : "#288264"};padding:18px 0;font-size:18px" data-action="shelve-all" ${locOk || done ? "" : "disabled"}>${done ? "✓ Hyllytetty — seuraava" : locOk ? `✓ Hyllytetty (${cur.qty} kpl)` : "Skannaa ensin paikka"}</button>`
     : `<div style="display:inline-block;margin-bottom:8px;padding:3px 10px;border-radius:999px;background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;font-size:12px;font-weight:700">🔢 LASKE KAPPALEET — suuri hävikki</div>
       <div class="qty-display" style="background:${done ? "#f0fdf4" : "#f8fafc"};border:2px solid ${done ? "#86efac" : "#e2e8f0"}">
         <span style="font-size:36px;font-weight:800;color:${done ? "#16a34a" : "#1e293b"}">${cc}</span><span style="font-size:22px;color:#94a3b8"> / </span>
@@ -275,9 +281,8 @@ export function shelveView(v) {
       ${counter}</div>
 
     <div class="card">
-      ${uncounted ? `<div style="font-size:13px;font-weight:600;color:#475569;margin-bottom:8px">Vie tuote paikkaan <b>${esc(cur.location || "UUSI")}</b> ja paina Hyllytetty tai skannaa EAN</div>`
-        : !locOk ? `<div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">1. Skannaa paikka: <b>${esc(cur.location)}</b></div>`
-        : `<div style="font-size:13px;font-weight:600;color:#16a34a;margin-bottom:8px">✓ ${esc(cur.location)} — 2. Skannaa EAN</div>`}
+      ${!locOk ? `<div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">1. Skannaa paikka: <b>${esc(cur.location)}</b></div>`
+        : `<div style="font-size:13px;font-weight:600;color:#16a34a;margin-bottom:8px">✓ ${esc(cur.location)} — 2. ${uncounted ? "Skannaa EAN tai paina Hyllytetty" : "Skannaa EAN"}</div>`}
       ${result(S.lastScanResult)}${err(S.error)}</div>
 
     <div class="flex gap-8 mb-12">

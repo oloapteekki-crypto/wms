@@ -11,7 +11,7 @@ import { $ } from "../../lib/ui.js";
 import { WORKERS } from "../../config/workers.js";
 import {
   CARTS, parseLoc, physicalAisle, cartOfLoc, plateOf, sortRoute, parseMaster, parseXml, mergeParsed, decodeXmlBuffer,
-  enrichItem, eanMatches, boxKey, findBox, batchList, batchItems, totals, isCounted, parseShrinkCsv, SHRINK_THRESHOLD_EUR,
+  enrichItem, lookupMaster, eanMatches, boxKey, findBox, batchList, batchItems, totals, isCounted, parseShrinkCsv, SHRINK_THRESHOLD_EUR,
 } from "./domain.js";
 import { loginView, setupView, scanView, cartSelectView, shelveView, reportView } from "./views.js";
 
@@ -93,7 +93,7 @@ function render() {
     case "shelve":
       if (!S.routeItems[S.currentIdx]) { finishShelving(true); return; }
       app.innerHTML = shelveView(v);
-      setPlaceholder(S.routeItems[S.currentIdx].counted === false ? "Skannaa EAN tai paina Hyllytetty" : isLocConfirmed() ? "Skannaa EAN" : "Skannaa paikka");
+      setPlaceholder(isLocConfirmed() ? (S.routeItems[S.currentIdx].counted === false ? "Skannaa EAN tai paina Hyllytetty" : "Skannaa EAN") : "Skannaa paikka");
       showScan();
       break;
     case "report": hideScan(); app.innerHTML = reportView(v); break;
@@ -361,7 +361,11 @@ function lookupEan(ean) {
       foundNoLoc ||= { sku, ...m };
     }
     found ||= foundNoLoc;
-    if (!found) { setState({ lastScanResult: { type: "fail", text: `EAN ${ean} ei löydy` }, error: null }); return; }
+    if (!found) { // EAN ei toimi: kokeillaan tuotenumeroa (VNR)
+      const byVnr = lookupMaster(S.master, code, "");
+      if (byVnr && byVnr.name) found = { sku: code, ...byVnr };
+    }
+    if (!found) { setState({ lastScanResult: { type: "fail", text: `EAN/tuotenumero ${ean} ei löydy` }, error: null }); return; }
     const pl = parseLoc((found.location || "").trim());
     const pa = pl ? physicalAisle(pl) : null;
     let qty = 0;
@@ -444,6 +448,7 @@ function addOne(item, idx) {
 function shelveAll() {
   const item = S.routeItems[S.currentIdx];
   if (!item || S.pauseStart) return;
+  if (!isLocConfirmed()) { setState({ error: "Skannaa paikka ensin" }); return; } // paikan skannausta ei voi ohittaa
   stopListening();
   const p = S.shelved[item.vnr] || 0;
   if (p >= item.qty) { autoAdvance(); return; }
@@ -459,18 +464,13 @@ function confirmEan(code) {
   if (!code || S.pauseStart) return;
   stopListening();
   setState({ error: null, lastScanResult: null });
-  const cur0 = S.routeItems[S.currentIdx];
-  if (cur0 && cur0.counted === false) {
-    if (eanMatches(cur0.ean, code)) shelveAll();
-    else setState({ error: "EAN ei täsmää — skannaa oikea tuote tai paina Hyllytetty" });
-    return;
-  }
   if (!S.confirmedLoc) { setState({ error: "Skannaa paikka ensin" }); return; }
   const cur = S.routeItems[S.currentIdx];
-  if (cur && eanMatches(cur.ean, code)) { addOne(cur, S.currentIdx); return; }
+  if (cur && eanMatches(cur.ean, code)) { if (cur.counted === false) shelveAll(); else addOne(cur, S.currentIdx); return; }
   const si = S.routeItems.findIndex((i) => i.location && i.location.trim().toUpperCase() === S.confirmedLoc && eanMatches(i.ean, code));
   if (si === -1) { setState({ error: "EAN ei tunnistettu" }); return; }
   if ((S.shelved[S.routeItems[si].vnr] || 0) >= S.routeItems[si].qty) { setState({ error: "Jo valmis" }); return; }
+  if (S.routeItems[si].counted === false) { S.currentIdx = si; shelveAll(); return; }
   addOne(S.routeItems[si], si);
 }
 
@@ -563,12 +563,7 @@ function processScan(val) {
     if (known || code.length >= 15) addBox(code);
     else lookupEan(code);
   } else if (S.phase === "shelve") {
-    const cur = S.routeItems[S.currentIdx];
-    if (cur && cur.counted === false) {
-      // Ei-laskettava: paikan skannaus vaihtaa kohdetta, EAN hyllyttää koko määrän
-      const asLoc = S.routeItems.some((i) => i.location && i.location.trim().toUpperCase() === code.toUpperCase());
-      if (asLoc) confirmLocation(code); else confirmEan(code);
-    } else if (!isLocConfirmed()) confirmLocation(code);
+    if (!isLocConfirmed()) confirmLocation(code);
     else confirmEan(code);
   }
 }

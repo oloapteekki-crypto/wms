@@ -29,12 +29,13 @@ const CART_BY_AISLE = {
 // levy 1 alkaa kärryn reitin alusta. Rajat laskettu tuoterekisterin paikkamääristä (≈ 250 / 340 / 460 tuotetta per levy L / A / B).
 // from = [käytävä, hylly], label = levyn sisältö. Rajan siirto: muuta from-arvoa ja label-tekstiä.
 export const PLATES = {
+  // FA-paikoille tulee vain pieniä määriä, joten koko FA (766 tuotetta) mahtuu yhdelle levylle.
   L: [
-    { label: "L1, FA hylly 1" },
-    { from: ["FA", 2], label: "FA hyllyt 2–3" },
-    { from: ["FA", 4], label: "FA hyllyt 4–5" },
-    { from: ["FA", 6], label: "FA hyllyt 6–7, L2 hyllyt 10–6" },
-    { from: ["L2", 5], label: "L2 hyllyt 5–1, L3" },
+    { label: "L1" },
+    { from: ["FA", 1], label: "FA (kaikki hyllyt)" },
+    { from: ["L2", 10], label: "L2 hyllyt 10–6" },
+    { from: ["L2", 5], label: "L2 hyllyt 5–1" },
+    { from: ["L3", 0], label: "L3" },
   ],
   A1: [
     { label: "A2 hyllyt 26–16" },

@@ -330,7 +330,10 @@ function onVoiceText(raw) {
     if (YES.includes(t)) { commitVoice(voice.pending.ymd); return; }
     if (NO.includes(t)) { voice.mode = "date"; voice.pending = null; say("🎤 Sano päiväys uudelleen"); return; }
   }
-  if (/^(ei päiväystä|ei päivää|ei pvm|ei)$/.test(t)) { commitVoice(""); return; }
+  // "Ei päiväystä" tunnistetaan väljästi: puheentunnistus kuulee sen usein muodossa "ei päivystä", "ei päiväys", "ei päivämäärää",
+  // "ei ole" tai "päiväystä ei". Mikään päiväyssana ei ala sanalla "ei" tai "ilman", joten niillä alkava lause tarkoittaa aina "ei päiväystä".
+  const clean = t.replace(/[.,!?]/g, " ").replace(/\s+/g, " ").trim();
+  if (/^(ei|eipä|ilman)(\s|$)/.test(clean) || /\b(ei|ilman)\s+(päiv|paiv|pvm)/.test(clean) || /^(päiväystä|päivämäärää|pvm)\s+(ei|puuttuu)$/.test(clean)) { commitVoice(""); return; }
   const d = parseSpokenDate(t);
   if (!d) { say(`🎤 "${t}" — en ymmärtänyt päiväystä, sano uudelleen`); return; }
   voice.pending = d; voice.mode = "dateConfirm";

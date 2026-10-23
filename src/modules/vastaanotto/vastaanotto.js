@@ -68,9 +68,7 @@ function render() {
   }
   // Rivin kirjaamisen jälkeen kohdistus takaisin skannauskenttään: seuraava tuote voidaan skannata heti
   if (S.phase === "order" && S.order && !document.querySelector(".login") && (focusScanNext || (!S.selectedKey && (!document.activeElement || document.activeElement === document.body)))) {
-    // Kuten Hyllytyksessä: kohdistus kentälle (MT90 "Fill in EditText" muistaa kentän) ja heti pois, ettei ruutunäppäimistö jää auki
-    const sf = $("scan-field");
-    if (sf) { sf.focus({ preventScroll: true }); setTimeout(() => { if (document.activeElement === sf) sf.blur(); }, 100); }
+    $("scan-field")?.focus({ preventScroll: true });
     focusScanNext = false;
   }
   saveDrafts();

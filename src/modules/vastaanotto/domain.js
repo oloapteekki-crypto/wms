@@ -221,4 +221,18 @@ export function splitToCarts(lines, recs, master) {
   return { groups: groups.filter((g) => g.items.length), items };
 }
 
+// Kärryyn jo viedyt määrät (sent/{kärry}/{tuote}) vähennetään: vienti lähettää vain uudet tuotteet, joten jo hyllytetty ei tule uudelleen.
+const vkey = (v) => String(v).replace(/[.#$/[\]]/g, "_");
+export function cartDelta(group, done = {}) {
+  const cur = {};
+  for (const i of group.items) { const k = vkey(i.vnr); (cur[k] ||= { item: i, qty: 0, exp: [] }).qty += i.qty; cur[k].exp.push(...(i.exp || [])); }
+  const items = [], qty = {};
+  for (const [k, c] of Object.entries(cur)) {
+    qty[k] = c.qty;
+    const d = c.qty - (Number(done[k]) || 0);
+    if (d > 0) items.push({ ...c.item, qty: d, exp: done[k] ? [] : c.exp });
+  }
+  return { items, qty, count: items.length, pieces: items.reduce((s, i) => s + i.qty, 0) };
+}
+
 export { colNum };

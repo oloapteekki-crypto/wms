@@ -612,16 +612,26 @@ app.addEventListener("change", (e) => {
   if (el && changes[el.dataset.change]) changes[el.dataset.change](el);
 });
 
+function submitScan(f) {
+  const v = f.value;
+  f.value = "";
+  processScan(v);
+  // Luetun koodin jälkeen näppäimistö laskeutuu; se nostetaan uudelleen kentälle, kun seuraava skannaus on tulossa (ei heti)
+  f.blur();
+  setTimeout(() => { if (S.phase === "scan" || S.phase === "shelve") f.focus(); }, 1200);
+}
 $("scan-field").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   e.preventDefault();
-  const v = e.target.value;
-  e.target.value = "";
-  processScan(v);
-  // Luetun koodin jälkeen näppäimistö laskeutuu; se nostetaan uudelleen kentälle, kun seuraava skannaus on tulossa (ei heti)
+  submitScan(e.target);
+});
+// Käsipääte voi kirjoittaa koodin kenttään ilman Enter-painallusta: kun kenttään ei tule uusia merkkejä 250 ms:iin ja koodi on
+// vähintään 8 merkkiä (EAN, SSCC, paikkakoodi), se käsitellään kuin Enter. Käsin kirjoitetut lyhyet koodit vaativat Enterin.
+let autoSubmitTimer = null;
+$("scan-field").addEventListener("input", (e) => {
+  clearTimeout(autoSubmitTimer);
   const f = e.target;
-  f.blur();
-  setTimeout(() => { if (S.phase === "scan" || S.phase === "shelve") f.focus(); }, 1200);
+  autoSubmitTimer = setTimeout(() => { if (f.value.trim().length >= 8) submitScan(f); }, 250);
 });
 $("cam-toggle").addEventListener("click", toggleCamera);
 $("cam-close").addEventListener("click", stopCamera);

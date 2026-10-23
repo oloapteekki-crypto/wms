@@ -513,15 +513,24 @@ app.addEventListener("input", (e) => {
   saveDrafts();
 });
 
+function submitScan(f) {
+  const v = f.value; f.value = ""; handleScan(v);
+  // Luetun koodin jälkeen näppäimistö laskeutuu; se nostetaan uudelleen kentälle, kun seuraava skannaus on tulossa (ei heti)
+  f.blur();
+  setTimeout(() => { if (S.phase === "order" && S.order && !S.selectedKey) $("scan-field")?.focus({ preventScroll: true }); }, 1200);
+}
+// Käsipääte voi kirjoittaa koodin kenttään ilman Enter-painallusta: kun kenttään ei tule uusia merkkejä 250 ms:iin ja koodi on
+// vähintään 8 merkkiä (EAN), se käsitellään kuin Enter. Käsin kirjoitetut lyhyet koodit vaativat Enterin.
+let autoSubmitTimer = null;
+app.addEventListener("input", (e) => {
+  if (e.target.id !== "scan-field") return;
+  clearTimeout(autoSubmitTimer);
+  const f = e.target;
+  autoSubmitTimer = setTimeout(() => { if (f.isConnected && f.value.trim().length >= 8) submitScan(f); }, 250);
+});
 app.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
-  if (e.target.id === "scan-field") {
-    e.preventDefault(); const v = e.target.value; e.target.value = ""; handleScan(v);
-    // Luetun koodin jälkeen näppäimistö laskeutuu; se nostetaan uudelleen kentälle, kun seuraava skannaus on tulossa (ei heti)
-    e.target.blur();
-    setTimeout(() => { if (S.phase === "order" && S.order && !S.selectedKey) $("scan-field")?.focus({ preventScroll: true }); }, 1200);
-    return;
-  }
+  if (e.target.id === "scan-field") { e.preventDefault(); submitScan(e.target); return; }
   if (e.target.id === "end-text") {
     e.preventDefault();
     const d = parseSpokenDate(e.target.value);

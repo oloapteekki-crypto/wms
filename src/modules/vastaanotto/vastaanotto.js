@@ -515,7 +515,13 @@ app.addEventListener("input", (e) => {
 
 app.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
-  if (e.target.id === "scan-field") { e.preventDefault(); const v = e.target.value; e.target.value = ""; handleScan(v); return; }
+  if (e.target.id === "scan-field") {
+    e.preventDefault(); const v = e.target.value; e.target.value = ""; handleScan(v);
+    // Luetun koodin jälkeen näppäimistö laskeutuu; se nostetaan uudelleen kentälle, kun seuraava skannaus on tulossa (ei heti)
+    e.target.blur();
+    setTimeout(() => { if (S.phase === "order" && S.order && !S.selectedKey) $("scan-field")?.focus({ preventScroll: true }); }, 1200);
+    return;
+  }
   if (e.target.id === "end-text") {
     e.preventDefault();
     const d = parseSpokenDate(e.target.value);

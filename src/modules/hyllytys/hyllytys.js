@@ -618,6 +618,10 @@ $("scan-field").addEventListener("keydown", (e) => {
   const v = e.target.value;
   e.target.value = "";
   processScan(v);
+  // Luetun koodin jälkeen näppäimistö laskeutuu; se nostetaan uudelleen kentälle, kun seuraava skannaus on tulossa (ei heti)
+  const f = e.target;
+  f.blur();
+  setTimeout(() => { if (S.phase === "scan" || S.phase === "shelve") f.focus(); }, 1200);
 });
 $("cam-toggle").addEventListener("click", toggleCamera);
 $("cam-close").addEventListener("click", stopCamera);

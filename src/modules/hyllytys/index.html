@@ -10,7 +10,8 @@
 <body>
 <div id="scan-wrap">
   <div style="display:flex;gap:8px;align-items:center">
-    <input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa viivakoodi" style="flex:1" autocomplete="off">
+    <input type="text" id="scan-field" class="scan-input" inputmode="none" placeholder="Skannaa viivakoodi" style="flex:1" autocomplete="off">
+    <button id="kbd-toggle" class="cam-btn" type="button" aria-label="Näppäimistö">⌨</button>
     <button id="cam-toggle" class="cam-btn" type="button">📷</button>
   </div>
   <div id="cam-overlay" style="display:none;margin-top:8px">

@@ -36,9 +36,11 @@ let S = {
 };
 
 /* ───────── Render (säilyttää kentän fokuksen) ───────── */
+// Skannauskentän ruutunäppäimistö on oletuksena pois (skanneri kirjoittaa kenttään suoraan); ⌨-painike avaa numeronäppäimistön käsin syöttöä varten.
+let kbdOn = false;
 function viewModel() {
   return {
-    S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice, autoShip,
+    kbd: kbdOn, S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice, autoShip,
     camOk: cameraSupported(), camOn: !!camera?.running, dirOk: typeof window.showDirectoryPicker === "function",
     xmlName: S.order ? xmlFileName(S.order.supplier, S.order.orderDate) : "",
   };
@@ -460,6 +462,7 @@ const actions = {
   "start-voice": (d) => startVoice(d.key),
   "stop-voice": () => { stopVoice(); scheduleRender(); },
   "toggle-cam": toggleCamera,
+  "toggle-kbd": () => { kbdOn = !kbdOn; render(); $("scan-field")?.focus({ preventScroll: true }); },
   "load-master": loadMaster,
   "to-shelving": () => toShelving(),
   "toggle-done": () => setState({ showDone: !S.showDone }),

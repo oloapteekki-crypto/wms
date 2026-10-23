@@ -138,7 +138,8 @@ export function orderView(v) {
       <div class="chips">
         <span class="chip st-ok">OK ${sum.ok}</span><span class="chip st-under">Vajaa ${sum.under}</span><span class="chip st-over">Yli ${sum.over}</span>
         <span class="chip st-none">Ei tullut ${sum.none}</span><span class="chip st-date">Puuttuu pvm ${sum.needsDate}</span><span class="chip st-pending">Odottaa ${sum.pending}</span></div>
-      <div class="scanrow"><input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa tuotteen EAN" autocomplete="off">
+      <div class="scanrow"><input type="text" id="scan-field" class="scan-input" inputmode="${v.kbd ? "numeric" : "none"}" placeholder="Skannaa tuotteen EAN" autocomplete="off">
+        <button class="cam-btn${v.kbd ? " on" : ""}" data-action="toggle-kbd" aria-label="Näppäimistö">⌨</button>
         ${v.camOk ? `<button class="cam-btn${v.camOn ? " on" : ""}" data-action="toggle-cam">📷</button>` : ""}</div>
       <label class="small muted" style="display:block"><input type="checkbox" data-change="auto-ship" ${v.autoShip ? "checked" : ""}> Siirrä kärryt automaattisesti hyllytykseen, kun tilaus on valmis</label>
       <label class="small muted"><input type="checkbox" data-change="auto-voice" ${v.autoVoice ? "checked" : ""}> 🎤 Puhekuittaus käynnistyy skannauksen jälkeen</label>

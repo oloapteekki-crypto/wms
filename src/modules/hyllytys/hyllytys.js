@@ -620,14 +620,6 @@ $("scan-field").addEventListener("keydown", (e) => {
   processScan(v);
 });
 $("cam-toggle").addEventListener("click", toggleCamera);
-// Ruutunäppäimistö on oletuksena pois (skanneri kirjoittaa kenttään suoraan); ⌨ avaa numeronäppäimistön käsin syöttöä varten.
-$("kbd-toggle").addEventListener("click", () => {
-  const f = $("scan-field");
-  const on = f.getAttribute("inputmode") === "none";
-  f.setAttribute("inputmode", on ? "numeric" : "none");
-  $("kbd-toggle").classList.toggle("on", on);
-  f.blur(); f.focus();
-});
 $("cam-close").addEventListener("click", stopCamera);
 
 // Sivu piilotetaan/suljetaan kesken hyllytyksen: tallennetaan osittainen tehotietue (korvautuu valmiilla).

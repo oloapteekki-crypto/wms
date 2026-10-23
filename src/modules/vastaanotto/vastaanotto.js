@@ -36,11 +36,9 @@ let S = {
 };
 
 /* ───────── Render (säilyttää kentän fokuksen) ───────── */
-// Skannauskentän ruutunäppäimistö on oletuksena pois (skanneri kirjoittaa kenttään suoraan); ⌨-painike avaa numeronäppäimistön käsin syöttöä varten.
-let kbdOn = false;
 function viewModel() {
   return {
-    kbd: kbdOn, S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice, autoShip,
+    S, workers: WORKERS, currentWorker, storeKind: store.kind, recent, voiceOn: !!voice, autoVoice, autoShip,
     camOk: cameraSupported(), camOn: !!camera?.running, dirOk: typeof window.showDirectoryPicker === "function",
     xmlName: S.order ? xmlFileName(S.order.supplier, S.order.orderDate) : "",
   };
@@ -70,7 +68,9 @@ function render() {
   }
   // Rivin kirjaamisen jälkeen kohdistus takaisin skannauskenttään: seuraava tuote voidaan skannata heti
   if (S.phase === "order" && S.order && !document.querySelector(".login") && (focusScanNext || (!S.selectedKey && (!document.activeElement || document.activeElement === document.body)))) {
-    $("scan-field")?.focus({ preventScroll: true });
+    // Kuten Hyllytyksessä: kohdistus kentälle (MT90 "Fill in EditText" muistaa kentän) ja heti pois, ettei ruutunäppäimistö jää auki
+    const sf = $("scan-field");
+    if (sf) { sf.focus({ preventScroll: true }); setTimeout(() => { if (document.activeElement === sf) sf.blur(); }, 100); }
     focusScanNext = false;
   }
   saveDrafts();
@@ -461,9 +461,7 @@ const actions = {
   "clear-line": (d) => { clearLine(d.key); resetDraft(d.key); },
   "start-voice": (d) => startVoice(d.key),
   "stop-voice": () => { stopVoice(); scheduleRender(); },
-  "toggle-cam": toggleCamera,
-  "toggle-kbd": () => { kbdOn = !kbdOn; render(); $("scan-field")?.focus({ preventScroll: true }); },
-  "load-master": loadMaster,
+  "toggle-cam": toggleCamera,  "load-master": loadMaster,
   "to-shelving": () => toShelving(),
   "toggle-done": () => setState({ showDone: !S.showDone }),
   "mark-arrived": (d) => markArrived(d.id),

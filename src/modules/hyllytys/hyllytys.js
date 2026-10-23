@@ -633,6 +633,15 @@ $("scan-field").addEventListener("input", (e) => {
   const f = e.target;
   autoSubmitTimer = setTimeout(() => { if (f.value.trim().length >= 8) submitScan(f); }, 250);
 });
+// Varmistus: osa päätteistä asettaa tekstin kenttään ilman input-tapahtumaa, joten kentän arvoa seurataan myös ajastimella.
+let polledVal = "", polledAt = 0;
+setInterval(() => {
+  const f = $("scan-field");
+  if (!f || (S.phase !== "scan" && S.phase !== "shelve")) return;
+  const v = f.value;
+  if (v !== polledVal) { polledVal = v; polledAt = Date.now(); return; }
+  if (v.trim().length >= 8 && Date.now() - polledAt >= 250) { polledVal = ""; submitScan(f); }
+}, 100);
 $("cam-toggle").addEventListener("click", toggleCamera);
 $("cam-close").addEventListener("click", stopCamera);
 

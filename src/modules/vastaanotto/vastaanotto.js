@@ -528,6 +528,15 @@ app.addEventListener("input", (e) => {
   const f = e.target;
   autoSubmitTimer = setTimeout(() => { if (f.isConnected && f.value.trim().length >= 8) submitScan(f); }, 250);
 });
+// Varmistus: osa päätteistä asettaa tekstin kenttään ilman input-tapahtumaa, joten kentän arvoa seurataan myös ajastimella.
+let polledVal = "", polledAt = 0;
+setInterval(() => {
+  const f = $("scan-field");
+  if (!f || S.phase !== "order" || !S.order) return;
+  const v = f.value;
+  if (v !== polledVal) { polledVal = v; polledAt = Date.now(); return; }
+  if (v.trim().length >= 8 && Date.now() - polledAt >= 250) { polledVal = ""; submitScan(f); }
+}, 100);
 app.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   if (e.target.id === "scan-field") { e.preventDefault(); submitScan(e.target); return; }

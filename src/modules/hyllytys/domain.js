@@ -17,6 +17,14 @@ export const CARTS = [
   { id: "B2", name: "B-kärry 2", color: "#6366f1", icon: "🟣", aisles: ["B3", "B4", "UU"], desc: "B3 (hyllyt 17–26), B4, UU" },
 ];
 
+// Kärryn avain: tukkutilausten kärryt ovat "A1", toimittajatilausten (Vastaanotto) "A1-V". Näin tukku- ja toimittajatilausten erät, lukitukset ja
+// edistyminen ovat toisistaan riippumattomia ja kärryjä voi hyllyttää yhtä aikaa molemmista lähteistä.
+export const cartBase = (key) => String(key ?? "").replace(/-V$/, "");
+export const isSupplierCart = (key) => /-V$/.test(String(key ?? ""));
+export const isSupplierBox = (b) => b?.by === "vastaanotto";
+export const cartDef = (key) => CARTS.find((c) => c.id === cartBase(key));
+export const cartName = (key) => { const c = cartDef(key); return c ? c.name + (isSupplierCart(key) ? " (toimittajatilaus)" : "") : ""; };
+
 // Jaettu käytävä: shelf >= from → reitin loppupään kärry (late), muuten alkupään (early).
 const SPLITS = { A4: { from: 15, early: "A2", late: "A1" }, B3: { from: 17, early: "B1", late: "B2" } };
 const CART_BY_AISLE = {
@@ -339,9 +347,10 @@ export function batchItems(scannedBoxes, batch, cartId, master) {
   const all = [];
   for (const b of Object.values(scannedBoxes || {})) {
     if (!b.items || b.t <= batch.since || (batch.until !== Infinity && b.t > batch.until)) continue;
+    if (isSupplierBox(b) !== isSupplierCart(cartId)) continue; // tukku- ja toimittajatilausten laatikot eivät sekoitu
     for (const item of b.items) {
       const e = enrichItem(item, master);
-      if (e.cartId !== cartId) continue;
+      if (e.cartId !== cartBase(cartId)) continue;
       const ex = all.find((i) => i.vnr === e.vnr);
       if (ex) { ex.qty += e.qty; if (e.exp || ex.exp) ex.exp = mergeExp(ex.exp, e.exp); }
       else all.push(e);

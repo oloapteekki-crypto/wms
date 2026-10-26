@@ -10,7 +10,7 @@ import { fetchCsvText } from "../../lib/csv.js";
 import { $ } from "../../lib/ui.js";
 import { WORKERS } from "../../config/workers.js";
 import {
-  CARTS, parseLoc, physicalAisle, cartOfLoc, plateOf, sortRoute, parseMaster, parseXml, mergeParsed, decodeXmlBuffer,
+  CARTS, cartName, parseLoc, physicalAisle, cartOfLoc, plateOf, sortRoute, parseMaster, parseXml, mergeParsed, decodeXmlBuffer,
   enrichItem, lookupMaster, eanMatches, boxKey, findBox, batchList, batchItems, totals, isCounted, parseShrinkCsv, SHRINK_THRESHOLD_EUR,
 } from "./domain.js";
 import { loginView, setupView, scanView, cartSelectView, shelveView, reportView } from "./views.js";
@@ -237,9 +237,8 @@ function logShelveEvent(vnr, item, added, total, expected, method) {
 
 function performanceRecord(partial) {
   const { shelved, expected } = totals(S.routeItems, S.shelved);
-  const cart = CARTS.find((c) => c.id === S.selectedCart);
   const rec = {
-    worker: currentWorker || "(ei valittu)", cart: S.selectedCart, cartName: `${cart?.name || ""} #${S.selectedBatch?.num || ""}`,
+    worker: currentWorker || "(ei valittu)", cart: S.selectedCart, cartName: `${cartName(S.selectedCart)} #${S.selectedBatch?.num || ""}`,
     batch: S.selectedBatch?.id || "", start: S.shelveStartTime, end: Date.now(), elapsed: elapsedSec() * 1000,
     shelved, expected, items: S.routeItems.length,
   };

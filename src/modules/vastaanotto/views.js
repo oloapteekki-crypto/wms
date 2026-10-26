@@ -128,7 +128,17 @@ export function orderView(v) {
     return S.filter === "all" ? true : S.filter === "done" ? isDone : !isDone;
   });
   const tabs = [["lines", "Rivit"], ["carts", "Kärryt"], ["devs", "Poikkeamat"], ["xml", "XML"]];
+  // Käsiteltävä rivi pysyy aina näkyvissä ruudun yläreunassa, vaikka listaa vieritettäisiin
+  const act = S.selectedKey ? order.lines.find((l) => l.key === S.selectedKey) : null;
+  let stickyLine = "";
+  if (act) {
+    const arec = recs[act.key] || {};
+    const apl = placement(act, S.master);
+    stickyLine = `<div class="sticky-line" data-action="goto-line" data-key="${esc(act.key)}"><div class="sl-name">${esc(act.name)}</div>
+      <div class="sl-sub"><b>${arec.qty ?? 0}</b> / ${act.ordered} kpl${apl ? ` · ${apl.icon} ${esc(apl.label)}${apl.aisle ? " · levy " + esc(apl.aisle) : ""}${apl.location ? " · " + esc(apl.location) : ""}` : ""}</div></div>`;
+  }
   return `
+    ${stickyLine}
     <button class="back linkbtn" data-action="to-start">← Tilaukset</button>
     <div class="card"><div class="flex justify-between items-center"><div><h1 style="margin:0">${esc(order.supplier.name)}</h1>
       <div class="muted small">Tilaus ${esc(formatYmd(order.orderDate))} • ${sum.total} riviä • ${sum.orderedUnits} kpl tilattu${order.updatedAt ? ` • tilausta päivitetty Sheetsistä ${new Date(order.updatedAt).toLocaleString("fi-FI", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}` : ""}</div></div>

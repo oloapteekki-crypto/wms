@@ -82,3 +82,8 @@ h2{font-size:15px;font-weight:700;margin-bottom:8px}
 .box-sum{font-size:13px;text-align:right;color:var(--ink)}
 .box-form{border-top:1px dashed #ccc;padding-top:6px}
 .line{scroll-margin-top:8px}
+
+/* Käsiteltävä rivi aina näkyvissä */
+.sticky-line{position:sticky;top:0;z-index:30;background:#fff;border-bottom:3px solid #288264;padding:8px 12px;margin:0 -12px 8px;box-shadow:0 2px 6px rgba(0,0,0,.1);cursor:pointer}
+.sticky-line .sl-name{font-size:15px;font-weight:700;line-height:1.2}
+.sticky-line .sl-sub{font-size:13px;color:#475569;margin-top:2px}

@@ -267,7 +267,7 @@ function commitDraft(key) {
 function selectLine(key) {
   stopVoice();
   useDraft(key);
-  scrollTarget = { key, until: Date.now() + 2500 };
+  scrollTarget = { key, until: Date.now() + 6000 };
   setState({ selectedKey: key, voiceCandidate: null });
 }
 /* ───────── Puhe: määrä → vahvistus → päiväys → vahvistus ───────── */
@@ -407,7 +407,7 @@ async function toShelving(opts = {}) {
     await store.set(`sessions/${day}/scannedBoxes/${boxKey(sscc)}`, box);
     await store.set(`vastaanotto/${S.order.id}/sent/${g.id}`, { ...(sent[g.id] || {}), ...d.qty });
     const bt = Math.max(Date.now(), t + 1);
-    await store.set(`sessions/${day}/cartBatches/${g.id}/${bt.toString(36)}${g.id}`, { by: "vastaanotto", t: bt });
+    await store.set(`sessions/${day}/cartBatches/${g.id}-V/${bt.toString(36)}${g.id}`, { by: "vastaanotto", t: bt });
   }
   await store.set(`vastaanotto/${S.order.id}/shelving`, { t: Date.now() });
   const pieces = plan.reduce((s, x) => s + x.d.pieces, 0);
@@ -474,6 +474,7 @@ const actions = {
   "start-voice": (d) => startVoice(d.key),
   "stop-voice": () => { stopVoice(); scheduleRender(); },
   "toggle-cam": toggleCamera,  "load-master": loadMaster,
+  "goto-line": (d) => { $("line-" + d.key)?.scrollIntoView({ block: "start" }); },
   "to-shelving": () => toShelving(),
   "cart-ready": (d) => toShelving({ cartIds: [d.cart] }),
   "toggle-done": () => setState({ showDone: !S.showDone }),
@@ -501,6 +502,9 @@ const actions = {
 
 app.addEventListener("click", (e) => {
   const el = e.target.closest("[data-action]");
+  // Painikkeen painallus laskee näppäimistön (määrä- ja päiväyskentät), ettei se jää peittämään riviä
+  const ae = document.activeElement;
+  if (el && ae && (ae.id === "qty-input" || ae.id === "end-text") && !el.contains(ae)) ae.blur();
   if (el && actions[el.dataset.action]) actions[el.dataset.action](el.dataset, el);
 });
 
@@ -516,8 +520,25 @@ app.addEventListener("change", (e) => {
     scheduleRender();
     return;
   }
-  if (t.id === "end-date" && t.value) { S.draft.end = t.value.replace(/-/g, ""); scheduleRender(); return; }
+  if (t.id === "end-date" && t.value) { S.draft.end = t.value.replace(/-/g, ""); t.blur(); scheduleRender(); return; }
   if (t.dataset.change === "batch-end" && t.value) setBatchEnd(t.dataset.key, t.dataset.id, t.value.replace(/-/g, ""));
+});
+
+// Päiväys kirjataan itsestään, kun kenttään kirjoitettu päiväys on kelvollinen eikä kirjoitus jatku 900 ms:iin; näppäimistö laskeutuu.
+let dateTimer = null;
+app.addEventListener("input", (e) => {
+  if (e.target.id !== "end-text") return;
+  clearTimeout(dateTimer);
+  const f = e.target;
+  dateTimer = setTimeout(() => {
+    if (!f.isConnected || document.activeElement !== f) return;
+    const d = f.value.trim().length >= 4 ? parseSpokenDate(f.value) : null;
+    if (!d) return;
+    f.value = "";
+    S.draft.end = d.ymd;
+    f.blur();
+    setState({ error: null });
+  }, 900);
 });
 
 // Määrä talteen kirjoitettaessa, jotta uudelleenpiirto (esim. päiväyksen valinta) ei hävitä syötettyä lukua
@@ -561,13 +582,15 @@ app.addEventListener("keydown", (e) => {
     if (!d) { setState({ error: "Päiväys ei kelpaa (esim. 8/26 tai 16.12.2026)" }); return; }
     e.target.value = "";
     S.draft.end = d.ymd;
+    e.target.blur(); // päiväys kirjattu: näppäimistö laskeutuu
     setState({ error: null });
     return;
   }
   if (e.target.id === "qty-input") {
     const n = parseInt(e.target.value, 10);
     if (!Number.isNaN(n)) S.draft.qty = n;
-    if (S.draft.end !== null) commitDraft(e.target.dataset.key); else { e.target.blur(); scheduleRender(); }
+    e.target.blur();
+    if (S.draft.end !== null) commitDraft(e.target.dataset.key); else scheduleRender();
   }
 });
 

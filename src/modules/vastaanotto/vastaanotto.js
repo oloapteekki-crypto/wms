@@ -48,6 +48,9 @@ function viewModel() {
 // Ilman tätä focus() palautti skannauskentän ja sivu hyppäsi ylös, jolloin työntekijä joutui skrollaamaan riville itse.
 let scrollTarget = null; // {key, until}
 let focusScanNext = false;
+// Skannauksen jälkeen kohdistus siirtyy itsestään oikeaan kenttään: määrä → päiväys → kirjaus → seuraava skannaus
+let focusQtyNext = false;
+let focusDateNext = false;
 function applyScroll() {
   if (!scrollTarget || Date.now() > scrollTarget.until) { scrollTarget = null; return false; }
   const el = $("line-" + scrollTarget.key);
@@ -65,6 +68,10 @@ function render() {
   if (keep) {
     const el = $(keep.id);
     if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(keep.start, keep.end); } catch { /* ei tekstikenttä */ } }
+  }
+  if (S.selectedKey) {
+    if (focusDateNext) { $("end-text")?.focus({ preventScroll: true }); focusDateNext = false; focusQtyNext = false; }
+    else if (focusQtyNext) { const q = $("qty-input"); if (q) { q.focus({ preventScroll: true }); try { q.select(); } catch { /* ei valintaa */ } } focusQtyNext = false; }
   }
   // Rivin kirjaamisen jälkeen kohdistus takaisin skannauskenttään: seuraava tuote voidaan skannata heti
   if (S.phase === "order" && S.order && !document.querySelector(".login") && (focusScanNext || (!S.selectedKey && (!document.activeElement || document.activeElement === document.body)))) {
@@ -354,6 +361,7 @@ function handleScan(raw) {
   const st = lineStatus(line, S.recs[key]);
   const done = st !== "pending" && st !== "needsDate";
   setState({ error: null, result: { type: "ok", text: "→ " + line.name }, filter: done && S.filter === "open" ? "all" : S.filter });
+  focusQtyNext = !(autoVoice && speechSupported()); // ei puhetta: kohdistus suoraan määräkenttään
   selectLine(key);
   if (autoVoice && speechSupported()) startVoice(key); // skannaus on käyttäjän toiminto, joten mikrofoni saa käynnistyä
 }
@@ -537,7 +545,8 @@ app.addEventListener("input", (e) => {
     f.value = "";
     S.draft.end = d.ymd;
     f.blur();
-    setState({ error: null });
+    if (S.draft.qty > 0 && S.draft.key) commitDraft(S.draft.key);
+    else { focusQtyNext = true; setState({ error: null }); }
   }, 900);
 });
 
@@ -582,15 +591,15 @@ app.addEventListener("keydown", (e) => {
     if (!d) { setState({ error: "Päiväys ei kelpaa (esim. 8/26 tai 16.12.2026)" }); return; }
     e.target.value = "";
     S.draft.end = d.ymd;
-    e.target.blur(); // päiväys kirjattu: näppäimistö laskeutuu
-    setState({ error: null });
+    e.target.blur(); // päiväys annettu: näppäimistö laskeutuu
+    if (S.draft.qty > 0 && S.draft.key) commitDraft(S.draft.key); // määrä ja päiväys annettu: laatikko kirjataan itsestään
+    else { focusQtyNext = true; setState({ error: null }); }
     return;
   }
   if (e.target.id === "qty-input") {
     const n = parseInt(e.target.value, 10);
     if (!Number.isNaN(n)) S.draft.qty = n;
-    e.target.blur();
-    if (S.draft.end !== null) commitDraft(e.target.dataset.key); else scheduleRender();
+    if (S.draft.end !== null) { e.target.blur(); commitDraft(e.target.dataset.key); } else { focusDateNext = true; scheduleRender(); }
   }
 });
 

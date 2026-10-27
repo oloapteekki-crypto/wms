@@ -220,7 +220,8 @@ export function summarizeReceiving(orders, date, now = Date.now()) {
       status: completion ? "done" : started ? "progress" : "waiting",
       lines: lines.length, linesDone: lineKeys.filter(lineDone).length, ordered: sum(lines, (l) => l.ordered), received,
       arrival, started, completion, priority: o.priority || null,
-      waitMs: arrival ? (started ? started - arrival : now - arrival) : null,
+      // Valmis ilman kirjattua purkua (purettu ilman WMS:ää): odotusaikaa ei voi laskea, ettei se kasva loputtomiin
+      waitMs: arrival ? (started ? started - arrival : completion ? null : now - arrival) : null,
       durationMs: started ? (completion || now) - started : null,
       workMs: started ? work : null,
       workers: Object.entries(workers).sort((a, b) => b[1] - a[1]).map(([w]) => w),

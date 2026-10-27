@@ -175,7 +175,7 @@ const itemsOf = (o) => Object.values(o.lines || {})
 export function summarizeNotArrived(orders, now = Date.now()) {
   const rows = [];
   for (const [id, o] of Object.entries(orders || {})) {
-    if (!o?.meta || o.arrival?.t || o.completion?.t || values(o.rec).length) continue;
+    if (!o?.meta || o.cancelled || o.arrival?.t || o.completion?.t || values(o.rec).length) continue;
     const lines = Object.values(o.lines || {});
     const sent = o.meta.loadedAt || null;
     rows.push({
@@ -191,7 +191,7 @@ export function summarizeNotArrived(orders, now = Date.now()) {
 export function summarizeReceiving(orders, date, now = Date.now()) {
   const rows = [];
   for (const [id, o] of Object.entries(orders || {})) {
-    if (!o?.meta) continue;
+    if (!o?.meta || o.cancelled) continue;
     const times = [];
     const workers = {};
     let received = 0;

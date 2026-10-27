@@ -94,7 +94,7 @@ const isLineDone = (rec) => { const b = Object.values(rec?.b || {}); return !!re
 async function loadRecent() {
   try {
     const all = (await store.get("vastaanotto")) || {};
-    recent = Object.entries(all).map(([id, o]) => ({
+    recent = Object.entries(all).filter(([, o]) => !o.cancelled).map(([id, o]) => ({
       id, supplier: o.meta?.supplier?.name || id, date: o.meta?.orderDate ? formatYmd(o.meta.orderDate) : "",
       total: Object.keys(o.lines || {}).length, done: Object.values(o.rec || {}).filter(isLineDone).length, xmlAt: o.xmlAt || null,
       sort: o.meta?.orderDate || "", loadedAt: o.meta?.loadedAt || 0,

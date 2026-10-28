@@ -34,3 +34,5 @@ details.card summary{cursor:pointer;font-size:14px;font-weight:600;color:#1e5f49
 .status{font-size:11px;color:#94a3b8;text-align:center;margin:14px 0 24px}
 .status button{border:none;background:none;color:#288264;font-size:11px;cursor:pointer;text-decoration:underline}
 .err{color:#b91c1c;font-size:13px;text-align:center;margin:8px 0}
+
+.loc-card .loc-name{font-size:20px;font-weight:700;margin:0 0 8px}

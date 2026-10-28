@@ -3,18 +3,15 @@
 import { fetchCsvText } from "../../lib/csv.js";
 import { createCamera, cameraSupported } from "../../lib/camera.js";
 import { esc, $ } from "../../lib/ui.js";
-import { loadJson, saveJson } from "../../lib/storage.js";
 import { parseMaster, parseLoc, eanMatches } from "../hyllytys/domain.js";
 
 const GCS_CSV = "https://storage.googleapis.com/olo-export-data/hyllytys-app-export000000000000.csv";
-const KEY_HIST = "wms_hyllypaikka_hist";
 
 let master = null; // {sku: {name, ean, location}}
 let entries = []; // [{sku, name, ean, location, lname}]
 let byEan = new Map();
 let loadedAt = 0;
 let loadError = "";
-let history = loadJson(KEY_HIST, []);
 let camera;
 
 const stripZeros = (s) => String(s || "").trim().replace(/^0+/, "");
@@ -100,28 +97,15 @@ function describe(e) {
 function showEntries(list, code) {
   const out = $("result");
   if (!list.length) {
-    out.innerHTML = `<div class="loc-card miss"><div class="loc-label">Ei löydy</div><div class="loc-big text">${esc(code)}</div>
-      <div class="loc-parts">Koodia ei löydy tuoterekisteristä. Kokeile hakua nimellä tai tuotenumerolla alta.</div></div>`;
+    out.innerHTML = `<div class="loc-card miss"><div class="loc-label">Ei löydy</div><div class="loc-big text">${esc(code)}</div></div>`;
     return;
   }
-  const [main, ...rest] = list;
+  // Skannauksen jälkeen näytetään vain tuotteen nimi ja varastopaikka
+  const main = list[0];
   const d = describe(main);
-  out.innerHTML = `<div class="loc-card ${d.cls}"><div class="loc-label">${d.label}</div>
-      <div class="loc-big${d.text ? " text" : ""}">${esc(d.big)}</div>
-      <div class="loc-parts">${d.parts}</div>
-      <div class="loc-name">${esc(main.name)}</div>
-      <div class="loc-meta">VNR ${esc(main.sku)}${main.ean && main.ean !== "null" ? " | EAN " + esc(main.ean) : ""}</div>
-      ${rest.length ? `<div class="alt"><div class="loc-label">Samalla koodilla myös ${rest.length}</div>${rest.slice(0, 5).map((e) => `<div>${esc(e.name)} → <b>${esc(e.location || "ei paikkaa")}</b></div>`).join("")}</div>` : ""}</div>`;
-  history = [{ code, sku: main.sku, name: main.name, loc: main.location || "", t: Date.now() }, ...history.filter((h) => h.sku !== main.sku)].slice(0, 8);
-  saveJson(KEY_HIST, history);
-  renderHistory();
+  out.innerHTML = `<div class="loc-card ${d.cls}"><div class="loc-name">${esc(main.name)}</div>
+      <div class="loc-big${d.text ? " text" : ""}">${esc(d.big)}</div></div>`;
   navigator.vibrate?.(60);
-}
-
-function renderHistory() {
-  $("history").innerHTML = history.length
-    ? `<div class="hist-title">Viimeksi haetut</div><div class="card" style="padding:4px 10px">${history.map((h) => `<div class="hit" data-sku="${esc(h.sku)}"><span class="n">${esc(h.name)}</span><span class="l">${esc(h.loc || "–")}</span></div>`).join("")}</div>`
-    : "";
 }
 
 /* ───────── Skannaus ───────── */
@@ -136,9 +120,7 @@ function submitScan(f) {
   const v = f.value;
   f.value = "";
   handleCode(v);
-  // Näppäimistö laskeutuu luvun jälkeen ja kenttä kohdistetaan uudelleen seuraavaa skannausta varten
-  f.blur();
-  setTimeout(() => { if (document.activeElement?.id !== "search-field" && !camera?.running) f.focus(); }, 1200);
+  f.focus(); // kenttä pysyy kohdistettuna: seuraava koodi voidaan lukea heti
 }
 
 const scanField = $("scan-field");
@@ -194,5 +176,4 @@ document.addEventListener("click", (e) => {
 /* ───────── Käynnistys ───────── */
 camera = createCamera({ video: $("cam-video"), flash: $("cam-flash"), onCode: handleCode });
 if (!cameraSupported()) $("cam-toggle").style.display = "none";
-renderHistory();
 loadMaster().then(() => scanField.focus());

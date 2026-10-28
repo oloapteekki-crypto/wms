@@ -33,6 +33,7 @@ const initialState = () => ({
   phase: "setup", xmlBoxes: null, boxAltKeys: null, master: null, error: null, lastScanResult: null, loadProgress: null,
   selectedCart: null, selectedBatch: null, routeItems: [], shelved: {}, currentIdx: 0, confirmedLoc: null,
   activeBox: null, productLookup: null, shelveStartTime: null, pausedTime: 0, pauseStart: null,
+  manualLoc: false, // paikan käsinsyöttö auki (tarra ei lue)
   shrink: null, shrinkMeta: null, // laskettavat tuotteet (suuri hävikki): {tuotenro: tappio €}; null = lasketaan kaikki
 });
 let S = initialState();
@@ -421,9 +422,9 @@ function confirmLocation(code) {
   const cur = S.routeItems[S.currentIdx];
   if (!cur) return;
   const sc = code.trim().toUpperCase();
-  if (sc === cur.location.trim().toUpperCase()) { setState({ confirmedLoc: sc, lastScanResult: { type: "ok", text: "✓ " + cur.location } }); syncProgress(); return; }
+  if (sc === cur.location.trim().toUpperCase()) { setState({ manualLoc: false, confirmedLoc: sc, lastScanResult: { type: "ok", text: "✓ " + cur.location } }); syncProgress(); return; }
   const other = S.routeItems.findIndex((i) => i.location && i.location.trim().toUpperCase() === sc);
-  if (other !== -1) { setState({ confirmedLoc: sc, currentIdx: other, lastScanResult: { type: "ok", text: "✓ " + S.routeItems[other].location } }); syncProgress(); return; }
+  if (other !== -1) { setState({ manualLoc: false, confirmedLoc: sc, currentIdx: other, lastScanResult: { type: "ok", text: "✓ " + S.routeItems[other].location } }); syncProgress(); return; }
   setState({ error: "Paikka ei reitillä", lastScanResult: { type: "fail", text: "Väärä" } });
 }
 
@@ -503,7 +504,7 @@ function navTo(idx) {
   if (idx < 0 || idx >= S.routeItems.length) return;
   stopListening();
   const same = (S.routeItems[S.currentIdx]?.location || "").trim().toUpperCase() === (S.routeItems[idx]?.location || "").trim().toUpperCase();
-  setState({ currentIdx: idx, confirmedLoc: same ? S.confirmedLoc : null, lastScanResult: null, error: null });
+  setState({ currentIdx: idx, confirmedLoc: same ? S.confirmedLoc : null, manualLoc: false, lastScanResult: null, error: null });
   syncProgress();
 }
 
@@ -553,6 +554,15 @@ function leaveTo(phase) {
 const leaveToCartSelect = () => leaveTo("cartSelect");
 const leaveToScan = () => leaveTo("scan");
 
+/* ───────── Paikan käsinsyöttö (tarra ei lue) ───────── */
+// Käsin syötetty paikka tarkistetaan samalla tavalla kuin skannattu: sen pitää olla reitillä. Välilyönnit, pisteet ja vinoviivat → viiva.
+function submitManualLoc() {
+  const raw = ($("manual-loc")?.value || "").trim().toUpperCase().replace(/[\s./\\_]+/g, "-");
+  if (!raw) { setState({ error: "Kirjoita hyllypaikka (esim. A3-17-A-05)" }); return; }
+  confirmLocation(raw);
+}
+app.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "manual-loc") { e.preventDefault(); submitManualLoc(); } });
+
 /* ───────── Skannauksen reititys ───────── */
 function processScan(val) {
   const code = (val || "").trim();
@@ -587,6 +597,9 @@ const actions = {
   "release-cart": (d) => { if (confirm("Vapauta kärry? Toisen laitteen hyllytys keskeytyy.")) { store.remove(sessionPath(`cartsTaken/${d.cart}_${d.batch}`)); } },
   "select-cart": (d) => selectCart(d.cart, d.batch),
   "shelve-all": shelveAll,
+  "manual-loc-open": () => { setState({ manualLoc: true, error: null }); setTimeout(() => $("manual-loc")?.focus(), 50); },
+  "manual-loc-cancel": () => setState({ manualLoc: false, error: null }),
+  "manual-loc-ok": submitManualLoc,
   adjust: (d) => setQty(d.vnr, Math.max(0, (S.shelved[d.vnr] || 0) + parseInt(d.delta, 10))),
   nav: (d) => navTo(S.currentIdx + parseInt(d.delta, 10)),
   undo,

@@ -284,7 +284,10 @@ export function shelveView(v) {
       ${counter}</div>
 
     <div class="card">
-      ${!locOk ? `<div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">1. Skannaa paikka: <b>${esc(cur.location)}</b></div>`
+      ${!locOk ? `<div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">1. Skannaa paikka: <b>${esc(cur.location)}</b></div>
+        ${S.manualLoc
+          ? `<div style="display:flex;gap:6px;margin-bottom:8px"><input id="manual-loc" type="text" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="${esc(cur.location || "A3-17-A-05")}" style="flex:1;min-width:0;padding:12px;border:2px solid #f59e0b;border-radius:10px;font-size:18px;font-family:monospace;font-weight:700;text-transform:uppercase"><button class="btn-sm btn-info" data-action="manual-loc-ok">OK</button><button class="btn-sm btn-outline" data-action="manual-loc-cancel" aria-label="Peruuta">✕</button></div>`
+          : `<button class="btn-sm btn-outline" style="width:100%;margin-bottom:8px" data-action="manual-loc-open">⌨ Tarra ei lue — syötä paikka käsin</button>`}`
         : `<div style="font-size:13px;font-weight:600;color:#16a34a;margin-bottom:8px">✓ ${esc(cur.location)} — 2. ${uncounted ? "Skannaa EAN tai paina Hyllytetty" : "Skannaa EAN"}</div>`}
       ${result(S.lastScanResult)}${err(S.error)}</div>
 

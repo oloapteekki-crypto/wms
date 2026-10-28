@@ -1,0 +1,36 @@
+/* Hyllypaikka: farmaseuttien hyllytystoiminto (skannaa viivakoodi → hyllypaikka) */
+.back{display:inline-block;margin-bottom:8px;font-size:13px;color:#288264;text-decoration:none}
+.scanrow{display:flex;gap:8px;margin-bottom:10px}
+.scan-input{flex:1;min-width:0;padding:14px 12px;border-radius:12px;border:2px solid #288264;font-size:18px;font-family:monospace;font-weight:600;text-align:center;outline:none;background:#f4f9f7;color:#1e5f49}
+.cam-btn{width:52px;border-radius:12px;border:2px solid #e2e8f0;background:#fff;font-size:22px;cursor:pointer;flex-shrink:0}
+.cam-btn.on{background:#f4f9f7;border-color:#288264}
+.cam-box{position:relative;border-radius:12px;overflow:hidden;background:#000;margin-bottom:6px}
+.cam-box video{width:100%;display:block;max-height:260px;object-fit:cover}
+.cam-frame{position:absolute;inset:18% 8%;border:2px solid rgba(255,255,255,.8);border-radius:10px;pointer-events:none}
+.cam-flash{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity .2s;pointer-events:none}
+
+.loc-card{border-radius:16px;padding:18px 16px;margin-bottom:12px;border:3px solid #288264;background:#fff;text-align:center}
+.loc-card.warn{border-color:#f59e0b;background:#fffbeb}
+.loc-card.rx{border-color:#b91c1c;background:#fef2f2}
+.loc-card.cold{border-color:#0369a1;background:#f0f9ff}
+.loc-card.miss{border-color:#94a3b8;background:#f8fafc}
+.loc-label{font-size:12px;font-weight:700;color:#64748b;letter-spacing:.5px;text-transform:uppercase}
+.loc-big{font-family:'JetBrains Mono','SF Mono','Courier New',monospace;font-size:40px;font-weight:800;line-height:1.1;margin:6px 0 4px;word-break:break-all;color:#1e293b}
+.loc-big.text{font-family:inherit;font-size:26px}
+.loc-parts{font-size:14px;color:#475569;margin-bottom:8px}
+.loc-name{font-size:16px;font-weight:600;color:#111;line-height:1.3;margin-top:8px}
+.loc-meta{font-size:12px;color:#94a3b8;margin-top:4px;font-family:monospace}
+.badge{display:inline-block;padding:2px 10px;border-radius:8px;font-size:13px;font-weight:800;font-family:monospace;background:#ecfdf5;color:#047857;border:1.5px solid #6ee7b7;vertical-align:middle}
+.alt{border-top:1px dashed #cbd5e1;margin-top:10px;padding-top:8px;text-align:left;font-size:13px}
+.alt b{font-family:monospace}
+
+details.card summary{cursor:pointer;font-size:14px;font-weight:600;color:#1e5f49}
+.search-input{width:100%;margin-top:10px;padding:12px;border-radius:10px;border:1px solid #cbd5e1;font-size:16px}
+.hit{display:flex;justify-content:space-between;gap:10px;padding:9px 6px;border-bottom:1px solid #f1f5f9;cursor:pointer;align-items:center}
+.hit:active{background:#f4f9f7}
+.hit .n{font-size:13px;line-height:1.3}
+.hit .l{font-family:monospace;font-weight:800;font-size:14px;white-space:nowrap;color:#1e5f49}
+.hist-title{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 4px}
+.status{font-size:11px;color:#94a3b8;text-align:center;margin:14px 0 24px}
+.status button{border:none;background:none;color:#288264;font-size:11px;cursor:pointer;text-decoration:underline}
+.err{color:#b91c1c;font-size:13px;text-align:center;margin:8px 0}

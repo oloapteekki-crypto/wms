@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#288264">
+<title>Hyllypaikka – WMS</title>
+<link rel="stylesheet" href="../../styles/theme.css">
+<link rel="stylesheet" href="hyllypaikka.css">
+</head>
+<body>
+<a class="back" href="../../../index.html">← WMS</a>
+<h1>📍 Hyllypaikka</h1>
+
+<div class="scanrow">
+  <input type="text" id="scan-field" class="scan-input" inputmode="numeric" placeholder="Skannaa tuotteen viivakoodi" autocomplete="off">
+  <button id="cam-toggle" class="cam-btn" type="button" aria-label="Kamera">📷</button>
+</div>
+<div id="cam-overlay" style="display:none">
+  <div class="cam-box"><video id="cam-video" playsinline webkit-playsinline autoplay muted></video><div class="cam-frame"></div><div id="cam-flash" class="cam-flash"></div></div>
+  <button id="cam-close" type="button" class="btn" style="margin-top:6px">Sulje kamera</button>
+</div>
+
+<div id="result"></div>
+
+<details class="card" id="search-card">
+  <summary>Hae nimellä tai tuotenumerolla</summary>
+  <input type="text" id="search-field" class="search-input" placeholder="Tuotteen nimi (väh. 3 merkkiä) tai tuotenumero" autocomplete="off">
+  <div id="search-results"></div>
+</details>
+
+<div id="history"></div>
+<div id="status" class="status"></div>
+<script type="module" src="hyllypaikka.js?v=20261028-1"></script>
+</body>
+</html>

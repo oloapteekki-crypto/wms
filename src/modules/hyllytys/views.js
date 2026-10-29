@@ -215,7 +215,7 @@ export function cartSelectView(v) {
         cards += `<div class="cart-card" style="border-color:${c.color}${selectable ? "" : ";opacity:.4;cursor:not-allowed"}" ${selectable ? `data-action="select-cart" data-cart="${key}" data-batch="${esc(batch.id)}"` : ""}>
           <div style="font-size:24px;margin-bottom:4px">${c.icon}</div>${head}
           <div style="font-size:13px;color:#64748b;margin:4px 0">${esc(c.desc)}</div>
-          <details style="font-size:12px;color:#64748b;margin-bottom:4px"><summary>Levyt 1–5</summary>${(PLATES[c.id] || []).map((p, i) => `<div>Levy ${i + 1}: ${esc(p.label)}</div>`).join("")}</details>${cnt}
+          <details style="font-size:12px;color:#64748b;margin-bottom:4px${PLATES[c.id]?.length ? "" : ";display:none"}"><summary>Levyt 1–5</summary>${(PLATES[c.id] || []).map((p, i) => `<div>Levy ${i + 1}: ${esc(p.label)}</div>`).join("")}</details>${cnt}
           ${isCurrent ? `<div style="font-size:11px;color:#3b82f6">⏳ Täyttyy — paina purussa "Kärry valmis"</div>` : ""}</div>`;
       }
     }

@@ -9,13 +9,24 @@ import { parseCsvObjects, pick } from "../../lib/csv.js";
 //   A-kärry 1: A2, A3 ja A4 hyllyt 15–26 · A-kärry 2: A4 hyllyt 1–14, A5, A6/A1 ja A7
 //   B-kärry 1: B1, B2 ja B3 hyllyt 0–16 · B-kärry 2: B3 hyllyt 17–26, B4 ja UU
 // Rajan siirto: muuta SPLITS-riviä (alin hyllynumero, joka kuuluu reitin loppupään kärrylle).
-export const CARTS = [
+// VÄLIAIKAISESTI vanha kärryjako (L, A, B; levy = käytävä), käyttäjän pyyntö 29.10.2026. Uuteen jakoon (A1/A2, B1/B2, levyt 1–5)
+// paluu: aseta CART_SPLIT_OLD = false. Vaihda kärryjako vasta, kun päivän hyllytys on valmis (kärryjen tunnukset eroavat: A ≠ A1/A2).
+export const CART_SPLIT_OLD = true;
+const OLD_CARTS = [
+  { id: "L", name: "L-kärry", color: "#ef4444", icon: "🔴", aisles: ["L1", "FA", "L2", "L3"], desc: "Levyt: L1, FA, L2, L3" },
+  { id: "A", name: "A-kärry", color: "#10b981", icon: "🟢", aisles: ["A2", "A3", "A4", "A5", "A6_even", "A6odd_A1even", "A1odd_A7"], desc: "Levyt: A1+A6, A2, A3, A4, A5" },
+  { id: "B", name: "B-kärry", color: "#3b82f6", icon: "🔵", aisles: ["B1", "B2", "B3", "B4", "UU"], desc: "Levyt: B1, B2, B3, B4, UU" },
+];
+// Vanhassa jaossa levy = fyysinen käytävä (A6/A1/A7 jaetaan hyllynumeron parillisuuden mukaan)
+const OLD_LEVY = { A6_even: "A6", A6odd_A1even: "A1/A6", A1odd_A7: "A1/A7" };
+const NEW_CARTS = [
   { id: "L", name: "L-kärry", color: "#ef4444", icon: "🔴", aisles: ["L1", "FA", "L2", "L3"], desc: "L1, FA, L2, L3" },
   { id: "A1", name: "A-kärry 1", color: "#10b981", icon: "🟢", aisles: ["A2", "A3", "A4"], desc: "A2, A3, A4 (hyllyt 15–26)" },
   { id: "A2", name: "A-kärry 2", color: "#0d9488", icon: "🟩", aisles: ["A4", "A5", "A6_even", "A6odd_A1even", "A1odd_A7"], desc: "A4 (hyllyt 1–14), A5, A6/A1, A7" },
   { id: "B1", name: "B-kärry 1", color: "#3b82f6", icon: "🔵", aisles: ["B1", "B2", "B3"], desc: "B1, B2, B3 (hyllyt 0–16)" },
   { id: "B2", name: "B-kärry 2", color: "#6366f1", icon: "🟣", aisles: ["B3", "B4", "UU"], desc: "B3 (hyllyt 17–26), B4, UU" },
 ];
+export const CARTS = CART_SPLIT_OLD ? OLD_CARTS : NEW_CARTS;
 
 // Kärryn avain: tukkutilausten kärryt ovat "A1", toimittajatilausten (Vastaanotto) "A1-V". Näin tukku- ja toimittajatilausten erät, lukitukset ja
 // edistyminen ovat toisistaan riippumattomia ja kärryjä voi hyllyttää yhtä aikaa molemmista lähteistä.
@@ -80,6 +91,7 @@ const routePos = (physAisle, shelf) => routeIndex(physAisle) * 1000 + (ROUTE_ASC
 
 // Levyn numero 1–5 kärryn sisällä (null, jos kärrylle ei ole levyjä).
 export function plateOf(cartId, parsedLoc, physAisle) {
+  if (CART_SPLIT_OLD) return cartId && parsedLoc && physAisle ? OLD_LEVY[physAisle] || physAisle : null;
   const plates = PLATES[cartId];
   if (!plates || !parsedLoc || !physAisle) return null;
   const pos = routePos(physAisle, parseInt(parsedLoc.shelf, 10) || 0);
@@ -90,6 +102,7 @@ export function plateOf(cartId, parsedLoc, physAisle) {
 
 // Kärry paikalle (parsedLoc + fyysinen käytävä). Reitin ulkopuoliset (RX, JK, L4/L5, uusi) → null.
 export function cartOfLoc(parsedLoc, physAisle) {
+  if (CART_SPLIT_OLD) return OLD_CARTS.find((c) => c.aisles.includes(physAisle))?.id || null;
   const sp = SPLITS[physAisle];
   if (sp) return (parseInt(parsedLoc?.shelf, 10) || 0) >= sp.from ? sp.late : sp.early;
   return CART_BY_AISLE[physAisle] || null;

@@ -109,8 +109,19 @@ function showEntries(list, code) {
 }
 
 /* ───────── Skannaus ───────── */
+// QR- ja DataMatrix-koodeista poimitaan tuotekoodi: GS1-koodin GTIN ((01) + 14 numeroa), muuten ensimmäinen 8–14 numeron jono tai teksti sellaisenaan.
+export function extractCode(raw) {
+  const s = String(raw || "").trim();
+  if (/^\d+$/.test(s)) return s;
+  const flat = s.replace(/[\x1d\s]/g, "");
+  const gtin = s.match(/\(01\)\s*(\d{14})/) || flat.match(/^(?:\]d2|\]Q3|\]C1)?01(\d{14})/);
+  if (gtin) return gtin[1];
+  const run = s.match(/\d{8,14}/);
+  return run ? run[0] : s;
+}
+
 function handleCode(raw) {
-  const code = String(raw || "").trim();
+  const code = extractCode(raw);
   if (!code) return;
   if (!master) { $("result").innerHTML = `<div class="err">${esc(loadError || "Tuoterekisteriä ladataan, yritä hetken kuluttua uudelleen.")}</div>`; return; }
   showEntries(lookup(code), code);
@@ -174,6 +185,6 @@ document.addEventListener("click", (e) => {
 });
 
 /* ───────── Käynnistys ───────── */
-camera = createCamera({ video: $("cam-video"), flash: $("cam-flash"), onCode: handleCode });
+camera = createCamera({ video: $("cam-video"), flash: $("cam-flash"), onCode: handleCode, twoD: true });
 if (!cameraSupported()) $("cam-toggle").style.display = "none";
 loadMaster().then(() => scanField.focus());

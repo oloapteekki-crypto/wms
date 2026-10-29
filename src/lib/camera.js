@@ -21,14 +21,17 @@ function loadZxing() {
 }
 
 // Palauttaa funktion detect(video) → Promise<koodi | null>
-async function makeDetector() {
+// twoD = true: lukee myös QR- ja DataMatrix-koodit (lääkepakkausten 2D-koodit)
+async function makeDetector(twoD = false) {
   if ("BarcodeDetector" in window) {
-    const d = new BarcodeDetector({ formats: FORMATS });
+    const d = new BarcodeDetector({ formats: twoD ? [...FORMATS, "qr_code", "data_matrix"] : FORMATS });
     return { slow: false, detect: async (video) => { const codes = await d.detect(video); return codes.length ? codes[0].rawValue : null; } };
   }
   const Z = await loadZxing();
   const hints = new Map();
-  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.ITF, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E]);
+  const zf = [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.ITF, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E];
+  if (twoD) zf.push(Z.BarcodeFormat.QR_CODE, Z.BarcodeFormat.DATA_MATRIX);
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, zf);
   hints.set(Z.DecodeHintType.TRY_HARDER, true);
   const reader = new Z.MultiFormatReader();
   reader.setHints(hints);
@@ -49,7 +52,7 @@ async function makeDetector() {
   };
 }
 
-export function createCamera({ video, flash, onCode }) {
+export function createCamera({ video, flash, onCode, twoD = false }) {
   let stream = null;
   let running = false;
   let detector = null;
@@ -98,7 +101,7 @@ export function createCamera({ video, flash, onCode }) {
       video.setAttribute("playsinline", "");
       video.muted = true;
       video.srcObject = stream;
-      try { detector = await makeDetector(); } catch (e) { this.stop(); throw e; }
+      try { detector = await makeDetector(twoD); } catch (e) { this.stop(); throw e; }
       await new Promise((resolve) => { video.onloadedmetadata = resolve; setTimeout(resolve, 2000); });
       await video.play();
       running = true;

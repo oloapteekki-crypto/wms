@@ -22,7 +22,7 @@ const app = $("app");
 
 let store, user = null, camera = null;
 let currentWorker = loadJson("wms_worker", "");
-let autoShip = loadJson("wms_vastaanotto_autoship", true); // tilauksen valmistuttua kärryt siirtyvät automaattisesti hyllytykseen
+let autoShip = loadJson("wms_vastaanotto_autoship", false); // valinnainen: tilauksen valmistuttua kärryt siirtyvät automaattisesti hyllytykseen (oletuksena pois, kärryt viedään käsin)
 let completing = false;
 let autoVoice = loadJson("wms_vastaanotto_autovoice", false); // puhe käynnistyy itsestään skannauksen jälkeen
 let recent = [];
